@@ -1,0 +1,3 @@
+# aramid
+
+Synthetic fibers
