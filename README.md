@@ -2,6 +2,7 @@
 
 Synthetic fibers
 
+- WIP
 - Fibers are little state machines that behave like coroutines: when `.run()`,
   they yield first, and then they return. In the meantime, they carry their full
   stack around with them.
