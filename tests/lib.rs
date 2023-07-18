@@ -64,7 +64,7 @@ fn squared_iter_try_resume() {
 #[test]
 fn squared_complete() {
     let fbr = Cubed::new(3);
-    let res = fbr.complete();
+    let res = fbr.complete(|_| ());
     assert_eq!(res, 27);
 }
 

@@ -5,6 +5,7 @@
 ### 0.3.0 (??/??/??)
 
 - Add example: [`monster.rs`](./examples/monster.rs)
+- API change: `Fiber::complete()` now calls a closure on every yielded value
 
 ## 0.2
 

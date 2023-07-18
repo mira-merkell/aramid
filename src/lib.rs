@@ -38,9 +38,17 @@ where
         FiberIter::new(self)
     }
 
-    /// Run the fiber to completion, discarding the yielded values.
-    fn complete(self) -> Self::Output {
-        FiberComplete::new(self).last().unwrap().unwrap()
+    /// Run the fiber to completion.
+    ///
+    /// Call `OP` on each of the yielded fibers.  Return final output.
+    fn complete<OP>(
+        self,
+        f: OP,
+    ) -> Self::Output
+    where
+        OP: FnMut(&mut Self),
+    {
+        FiberComplete::new(self, f).last().unwrap().unwrap()
     }
 }
 
@@ -180,31 +188,43 @@ where
     }
 }
 
-struct FiberComplete<F>
+struct FiberComplete<F, OP>
 where
     F: Fiber,
+    OP: FnMut(&mut F),
 {
     fbr: Option<F>,
+    f:   OP,
 }
 
-impl<F: Fiber> FiberComplete<F> {
-    fn new(fbr: F) -> Self {
+impl<F, OP> FiberComplete<F, OP>
+where
+    F: Fiber,
+    OP: FnMut(&mut F),
+{
+    fn new(
+        fbr: F,
+        f: OP,
+    ) -> Self {
         Self {
-            fbr: Some(fbr)
+            fbr: Some(fbr),
+            f,
         }
     }
 }
 
-impl<F> Iterator for FiberComplete<F>
+impl<F, OP> Iterator for FiberComplete<F, OP>
 where
     F: Fiber,
+    OP: FnMut(&mut F),
 {
     type Item = Option<F::Output>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(fbr) = mem::take(&mut self.fbr) {
             match fbr.run() {
-                State::Yield(yld) => {
+                State::Yield(mut yld) => {
+                    (self.f)(&mut yld);
                     mem::swap(&mut self.fbr, &mut Some(yld));
                     Some(None)
                 }
