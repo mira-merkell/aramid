@@ -41,18 +41,16 @@ pub trait Fiber {
     fn into_iter(self) -> FiberIter<Self>
     where
         Self: Sized,
-        Self::Yld: Yield<Output = Self::Output>,
     {
         FiberIter::new(self)
     }
 
     /// Run the fiber to completion, discarding the yielded values.
-    fn complete(self) -> Self::Output
+    fn complete(self)
     where
         Self: Sized,
-        Self::Yld: Yield<Output = Self::Output>,
     {
-        self.into_iter().last().unwrap()
+        let _ = self.into_iter().last();
     }
 }
 
@@ -165,12 +163,14 @@ impl<F: Fiber> FiberIter<F> {
     }
 }
 
+/// Iterator over yielded values of a fiber.
+///
+/// The fiber's final output is ignored.
 impl<F> Iterator for FiberIter<F>
 where
     F: Fiber,
-    F::Yld: Yield<Output = F::Output>,
 {
-    type Item = F::Output;
+    type Item = <F::Yld as Yield>::Output;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(fbr) = mem::take(&mut self.fbr) {
@@ -180,10 +180,10 @@ where
                     mem::swap(&mut self.fbr, &mut Some(yld.fiber()));
                     Some(res)
                 }
-                State::Done(res) => Some(res),
+                State::Done(_) => None,
             }
         } else {
-            None
+            panic!("bug in iterator impl")
         }
     }
 }
@@ -307,7 +307,7 @@ mod tests {
     fn squared_iter() {
         let fbr = Cubed::new(3);
         let res = fbr.into_iter().collect::<Vec<_>>();
-        assert_eq!(res, &[9, 27]);
+        assert_eq!(res, &[9,]);
     }
 
     #[test]
