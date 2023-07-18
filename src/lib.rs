@@ -250,6 +250,17 @@ impl<T, K> Yield for HeapYield<T, K> {
     }
 }
 
+pub fn continue_with<T, K, OP>(
+    val: K,
+    f: OP,
+) -> Continuation<T, K>
+where
+    OP: FnOnce() -> Continuation<T, K> + 'static,
+{
+    Continuation::Yield(HeapYield::new(val, HeapFiber::new(f)))
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -314,13 +325,11 @@ mod tests {
     fn heap_fiber_01() {
         let fbr = HeapFiber::new(|| {
             println!("Hello from fiber");
-            Continuation::Yield(HeapYield::new(
-                55.5,
-                HeapFiber::new(|| {
-                    println!("Hello from continuation");
-                    Continuation::Done(5)
-                }),
-            ))
+
+            continue_with(55.5, || {
+                println!("Hello from continuation");
+                Continuation::Done(5)
+            })
         });
 
         let mut yld = fbr.run().unwrap_yield();
@@ -334,19 +343,15 @@ mod tests {
     fn heap_fiber_02() {
         let fbr = HeapFiber::new(|| {
             println!("Hello from fiber");
-            Continuation::Yield(HeapYield::new(
-                55.5,
-                HeapFiber::new(|| {
-                    println!("Hello from continuation 1");
-                    Continuation::Yield(HeapYield::new(
-                        44.4,
-                        HeapFiber::new(|| {
-                            println!("Hello from continuation 2");
-                            Continuation::Done(5)
-                        }),
-                    ))
-                }),
-            ))
+
+            continue_with(55.5, || {
+                println!("Hello from continuation 1");
+
+                continue_with(44.4, || {
+                    println!("Hello from continuation 2");
+                    Continuation::Done(5)
+                })
+            })
         });
 
         let mut yld = fbr.run().unwrap_yield();
