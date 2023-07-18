@@ -128,7 +128,7 @@ where
         }
     }
 
-    /// Run fiber is the state is `Yield`.
+    /// Run fiber if the state is `Yield`.
     ///
     /// Returns the new yielded fiber wrapped in Some, or
     /// None, if the state was already `Done`.
@@ -175,7 +175,7 @@ where
                 State::Done(_) => None,
             }
         } else {
-            panic!("bug in iterator impl")
+            None
         }
     }
 }
