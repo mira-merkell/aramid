@@ -1,4 +1,4 @@
-//! A monster, patrolling its dungeon, walking back and forth 🕹️👾.
+//! A monster, patrolling its dungeon, walking back and forth 👾🕹️.
 //!
 //! The idea for this example was taken from Bob Nystrom's
 //! [blog post on fibers][bob-nystrom-fibers].
@@ -12,15 +12,17 @@ use aramid::{
 
 fn main() {
     // Create a monster ---
+    // By default, it will take 5 steps to the right,
+    // then wait for 3 "frames", then 5 steps to the left, and so on...
     let mut monster = Monster::default();
 
     // Start walking ---
-    let motion = Walk::new(&mut monster);
+    let walk = Walk::new(&mut monster);
 
     // Take 3 steps ---
-    let motion = (0..3).fold(motion, |mut m, i| {
-        println!("Position: {}. Take a step ({i})", m.get());
-        m.run().unwrap()
+    let motion = (0..3).fold(walk, |mut w, i| {
+        println!("Position: {}. Take a step ({i})", w.get());
+        w.run().unwrap()
     });
     println!("--- Take a break");
 
@@ -28,11 +30,12 @@ fn main() {
     // We cannot access the monster's state directly, since it's borrowed by
     // Walk. This line won't compile:
     //
-    // let pos = monster.position;
+    // >>> let pos = monster.position;
+    //
 
     // Take 2 more steps ---
-    let more = (0..2).fold(motion, |mut m, i| {
-        println!("Position: {}. Take a step ({i})", m.get());
+    let more = (0..2).fold(motion, |mut m, _| {
+        println!("Position: {}.", m.get());
         m.run().unwrap()
     });
 
@@ -46,6 +49,8 @@ fn main() {
     let state = wait.complete(|_| println!("waiting..."));
 
     // We're done waiting, get back to walking
+    // (The counter variable below is to showcase that the closure we give
+    // to complete() can change its state too.)
     let mut count = 0;
     let _ = state
         .complete(|fbr| {

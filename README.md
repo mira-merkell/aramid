@@ -16,7 +16,7 @@ Synthetic fibers!
 - The documentation is available on
   [docs.rs](https://docs.rs/aramid/latest/aramid/).
 - Check out our cool example of a fiber that models [a monster patrolling its
-  dungeon][example-monster] 🕹️👾.
+  dungeon][example-monster] 👾🕹️.
 
 [wikipedia-fibers]: https://en.wikipedia.org/wiki/Fiber_(computer_science)
 [api-heapjob]: https://docs.rs/aramid/latest/aramid/struct.HeapJob.html
