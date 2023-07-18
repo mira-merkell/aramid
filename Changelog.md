@@ -1,13 +1,11 @@
 # Changelog
 
-## 0.3
+## 0.2
 
-### 0.3.0 (??/??/??)
+### 0.2.2 (18/07/2023)
 
 - Add example: [`monster.rs`](./examples/monster.rs)
 - API change: `Fiber::complete()` now calls a closure on every yielded value
-
-## 0.2
 
 ### v0.2.1 (18/07/2023)
 
