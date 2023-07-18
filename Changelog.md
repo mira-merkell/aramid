@@ -2,7 +2,9 @@
 
 ## 0.3
 
-### 0.3.1 (??/??/??)
+### 0.3.0 (??/??/??)
+
+- Add example: [`monster.rs`](./examples/monster.rs)
 
 ## 0.2
 
