@@ -1,10 +1,10 @@
 //! Synthetic fibers 🧵
 //!
-//!
-//! - _very much_ WIP 🚧
-//! - Fibers are little state machines that behave like coroutines: when spun,
-//!   they yield and yield, and then they return. In the meantime, they carry
-//!   their stack around with them.
+//! - _very much_ WIP 🚧.
+//! - [Fibers](https://en.wikipedia.org/wiki/Fiber_(computer_science)) are
+//!   little state machines that behave like coroutines: when spun, they yield
+//!   and yield, and then they return. In the meantime, they carry their stack
+//!   around with them.
 //! - Fibers are a model of concurrent computation. They are static, lightweight
 //!   and well-suited for cooperative multitasking.
 //!
@@ -17,6 +17,7 @@
 
 use std::mem;
 
+/// Lightweight coroutines for cooperative multitasking.
 pub trait Fiber
 where
     Self: Sized,
@@ -24,10 +25,10 @@ where
     type Yield;
     type Output;
 
-    /// Run the finder until it yields.
+    /// Run the fiber until it yields.
     fn run(self) -> State<Self>;
 
-    /// Retrieve yielded value.
+    /// Retrieve the yielded value.
     fn get(&mut self) -> Self::Yield;
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
@@ -87,7 +88,7 @@ where
         }
     }
 
-    /// Return true is state is `Done`, otherwise return false
+    /// Return true is state is `Done`, otherwise return false.
     pub fn is_done(&self) -> bool {
         match self {
             State::Yield(_) => false,
@@ -110,9 +111,9 @@ where
         }
     }
 
-    /// Return the result of `OP` applied on the value of `Yield`
+    /// Return the result of `OP` applied on the value of `Yield`.
     ///
-    /// wrapped in `Some`.  Return `None` is the value is `Done`.
+    /// Return `None` is the value is `Done`.
     pub fn yield_and<OP, T>(
         self,
         f: OP,
@@ -215,7 +216,7 @@ where
     }
 }
 
-/// A fiber consisting of a closure and continuation
+/// A fiber consisting of a closure and continuation.
 ///
 /// The structure is allocated on the heap.
 pub struct HeapJob<T> {
