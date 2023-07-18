@@ -1,8 +1,8 @@
 //! Synthetic fibers.
 //!
-//! Fibers are little state machines that behave like coroutines: when run, they
-//! yield first, and then they return.  In the meantime, they carry their full
-//! stack around with them.
+//! Fibers are little state machines that behave like coroutines: when spun out,
+//! they yield first, and then they return.  In the meantime, they carry their
+//! full stack around with them.
 //!
 //! Fibers are a model of concurrent computation.  They are static, lightweight
 //! and particularly well-suited for cooperative multitasking.
@@ -20,6 +20,14 @@ pub trait Fiber {
         Self: Sized,
     {
         FiberIter::new(self)
+    }
+
+    /// Run the fiber to completion, discarding the yielded values.
+    fn complete(self) -> Self::Output
+    where
+        Self: Sized,
+    {
+        self.into_iter().last().unwrap()
     }
 }
 
@@ -45,21 +53,21 @@ where
 {
     /// # Panics
     ///
-    /// Panics, if `State::Done`.
-    pub fn unwrap_yield(self) -> F::Yld {
+    /// Panics, if `State::Yield`.
+    pub fn unwrap_done(self) -> <F as Fiber>::Output {
         match self {
-            State::Yield(yld) => yld,
-            State::Done(_) => panic!("state is Yield"),
+            State::Yield(_) => panic!("state is Done"),
+            State::Done(out) => out,
         }
     }
 
     /// # Panics
     ///
-    /// Panics, if `State::Yield`.
-    pub fn unwrap_done(self) -> F::Output {
+    /// Panics, if `State::Done`.
+    pub fn unwrap_yield(self) -> F::Yld {
         match self {
-            State::Yield(_) => panic!("state is Done"),
-            State::Done(out) => out,
+            State::Yield(yld) => yld,
+            State::Done(_) => panic!("state is Yield"),
         }
     }
 
@@ -74,6 +82,43 @@ where
         match self {
             State::Yield(_) => false,
             State::Done(_) => true,
+        }
+    }
+
+    pub fn done_or<OP>(
+        self,
+        f: OP,
+    ) -> <F as Fiber>::Output
+    where
+        OP: FnOnce(F::Yld) -> F::Output,
+    {
+        match self {
+            Self::Done(out) => out,
+            Self::Yield(yld) => f(yld),
+        }
+    }
+
+    pub fn yield_and<OP, T>(
+        self,
+        f: OP,
+    ) -> Option<T>
+    where
+        OP: FnOnce(F::Yld) -> T,
+    {
+        if let Self::Yield(yld) = self {
+            Some(f(yld))
+        } else {
+            None
+        }
+    }
+
+    pub fn advance(self) -> Option<Self>
+    where
+        F: Sized,
+    {
+        match self {
+            Self::Done(_) => None,
+            Self::Yield(yld) => Some(yld.fiber().run()),
         }
     }
 }
