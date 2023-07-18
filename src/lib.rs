@@ -4,78 +4,71 @@
 //! - _very much_ WIP 🚧
 //! - Fibers are little state machines that behave like coroutines: when spun,
 //!   they yield and yield, and then they return. In the meantime, they carry
-//!   their full stack around with them.
+//!   their stack around with them.
 //! - Fibers are a model of concurrent computation. They are static, lightweight
-//!   and particularly well-suited for cooperative multitasking.
-//!
-//! The API is built around two tied up traits: [`Fiber`](crate::Fiber) and
-//! [`Yield`](crate::Yield): a type implementing `Fiber` must have an associated
-//! type that implements `Yield` whose associated type, in turn, must be the
-//! original type itself.  This way, a type that implements `Fiber` becomes
-//! automatically a state machine: calling `Fiber::run()` produces
-//! `Yield` wrapped in [`State::Yield`](crate::State) that can elongate the
-//! fiber by calling `Yield::fiber()`.  When the fiber is finished, the last
-//! call to run will produce `State::Done` variant from which the final result
-//! can be extracted.
-//!
-//! Each instance of `Yield` can yield an additional value that need not to be
-//! the same as the type of the final output of the fiber.
+//!   and well-suited for cooperative multitasking.
 //!
 //! The enum [`State`](crate::State) contains utility methods for processing
 //! yielded values, not unlike the Standard Library's `Result` or `Option`.
 //!
-//! Additionally, sized fibers can be turned into iterators over their yielded
-//! values; and closures that return a special type:
-//! [`Continuation`](crate::Continuation) can be turned into [fibers that live
-//! on the heap](crate::HeapFiber), much like standard coroutines in other
-//! languages.
+//! Additionally, fibers can be turned into iterators over their yielded
+//! values; and closures that return a `State` can be turned into [fibers that
+//! live on the heap](crate::HeapJob).
 
 use std::mem;
 
-pub trait Fiber {
+pub trait Fiber
+where
+    Self: Sized,
+{
+    type Yield;
     type Output;
-    type Yld: Yield<Fbr = Self>;
 
+    /// Run the finder until it yields.
     fn run(self) -> State<Self>;
 
-    fn into_iter(self) -> FiberIter<Self>
-    where
-        Self: Sized,
-    {
+    /// Retrieve yielded value.
+    fn get(&mut self) -> Self::Yield;
+
+    /// Consume the fiber and turn it into an iterator over its yielded values.
+    ///
+    /// The final return value is ignored.
+    fn into_iter(self) -> FiberIter<Self> {
         FiberIter::new(self)
     }
 
     /// Run the fiber to completion, discarding the yielded values.
-    fn complete(self)
-    where
-        Self: Sized,
-    {
-        let _ = self.into_iter().last();
+    fn complete(self) -> Self::Output {
+        FiberComplete::new(self).last().unwrap().unwrap()
     }
 }
 
-pub trait Yield {
-    type Output;
-    type Fbr: Fiber<Yld = Self>;
-
-    fn fiber(self) -> Self::Fbr;
-
-    fn get(&mut self) -> Self::Output;
-}
-
+/// State of the fiber
 #[derive(Debug, PartialEq)]
 pub enum State<F>
 where
-    F: Fiber + ?Sized,
+    F: Fiber,
 {
-    Yield(F::Yld),
+    /// Yielded value
+    Yield(F),
+    /// Done processing
     Done(F::Output),
 }
 
 impl<F> State<F>
 where
-    F: Fiber + ?Sized,
+    F: Fiber,
 {
+    /// # Panics
+    ///
+    /// Panics, if `State::Done`.
+    pub fn unwrap(self) -> F {
+        match self {
+            State::Yield(fbr) => fbr,
+            State::Done(_) => panic!("state is Yield"),
+        }
+    }
+
     /// # Panics
     ///
     /// Panics, if `State::Yield`.
@@ -86,16 +79,7 @@ where
         }
     }
 
-    /// # Panics
-    ///
-    /// Panics, if `State::Done`.
-    pub fn unwrap_yield(self) -> F::Yld {
-        match self {
-            State::Yield(yld) => yld,
-            State::Done(_) => panic!("state is Yield"),
-        }
-    }
-
+    /// Return true if state is `Yield`, otherwise return false.
     pub fn is_yield(&self) -> bool {
         match self {
             State::Yield(_) => true,
@@ -103,6 +87,7 @@ where
         }
     }
 
+    /// Return true is state is `Done`, otherwise return false
     pub fn is_done(&self) -> bool {
         match self {
             State::Yield(_) => false,
@@ -110,44 +95,53 @@ where
         }
     }
 
+    /// Return the value of `Done`, or apply operator `OP` on the value of
+    /// `Yield`.
     pub fn done_or<OP>(
         self,
         f: OP,
     ) -> <F as Fiber>::Output
     where
-        OP: FnOnce(F::Yld) -> F::Output,
+        OP: FnOnce(F) -> F::Output,
     {
         match self {
             Self::Done(out) => out,
-            Self::Yield(yld) => f(yld),
+            Self::Yield(fbr) => f(fbr),
         }
     }
 
+    /// Return the result of `OP` applied on the value of `Yield`
+    ///
+    /// wrapped in `Some`.  Return `None` is the value is `Done`.
     pub fn yield_and<OP, T>(
         self,
         f: OP,
     ) -> Option<T>
     where
-        OP: FnOnce(F::Yld) -> T,
+        OP: FnOnce(F) -> T,
     {
-        if let Self::Yield(yld) = self {
-            Some(f(yld))
+        if let Self::Yield(fbr) = self {
+            Some(f(fbr))
         } else {
             None
         }
     }
 
-    pub fn advance(self) -> Option<Self>
-    where
-        F: Sized,
-    {
+    /// Run fiber is the state is `Yield`.
+    ///
+    /// Returns the new yielded fiber wrapped in Some, or
+    /// None, if the state was already `Done`.
+    pub fn advance(self) -> Option<Self> {
         match self {
             Self::Done(_) => None,
-            Self::Yield(yld) => Some(yld.fiber().run()),
+            Self::Yield(fbr) => Some(fbr.run()),
         }
     }
 }
 
+/// Iterator over yielded values of a fiber.
+///
+/// The fiber's final output is ignored.
 pub struct FiberIter<F>
 where
     F: Fiber,
@@ -163,21 +157,18 @@ impl<F: Fiber> FiberIter<F> {
     }
 }
 
-/// Iterator over yielded values of a fiber.
-///
-/// The fiber's final output is ignored.
 impl<F> Iterator for FiberIter<F>
 where
     F: Fiber,
 {
-    type Item = <F::Yld as Yield>::Output;
+    type Item = F::Yield;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(fbr) = mem::take(&mut self.fbr) {
             match fbr.run() {
                 State::Yield(mut yld) => {
                     let res = yld.get();
-                    mem::swap(&mut self.fbr, &mut Some(yld.fiber()));
+                    mem::swap(&mut self.fbr, &mut Some(yld));
                     Some(res)
                 }
                 State::Done(_) => None,
@@ -188,36 +179,53 @@ where
     }
 }
 
-pub enum Continuation<T, K> {
-    Yield(HeapYield<T, K>),
-    Done(T),
+struct FiberComplete<F>
+where
+    F: Fiber,
+{
+    fbr: Option<F>,
 }
 
-pub struct HeapYield<T, K> {
-    val: Option<K>,
-    fbr: HeapFiber<T, K>,
-}
-
-impl<T, K> HeapYield<T, K> {
-    pub fn new(
-        val: K,
-        fbr: HeapFiber<T, K>,
-    ) -> Self {
+impl<F: Fiber> FiberComplete<F> {
+    fn new(fbr: F) -> Self {
         Self {
-            fbr,
-            val: Some(val),
+            fbr: Some(fbr)
         }
     }
 }
 
-pub struct HeapFiber<T, K> {
-    f: Box<dyn FnOnce() -> Continuation<T, K>>,
+impl<F> Iterator for FiberComplete<F>
+where
+    F: Fiber,
+{
+    type Item = Option<F::Output>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(fbr) = mem::take(&mut self.fbr) {
+            match fbr.run() {
+                State::Yield(yld) => {
+                    mem::swap(&mut self.fbr, &mut Some(yld));
+                    Some(None)
+                }
+                State::Done(res) => Some(Some(res)),
+            }
+        } else {
+            None
+        }
+    }
 }
 
-impl<T, K> HeapFiber<T, K> {
+/// A fiber consisting of a closure and continuation
+///
+/// The structure is allocated on the heap.
+pub struct HeapJob<T> {
+    f: Box<dyn FnOnce() -> State<HeapJob<T>>>,
+}
+
+impl<T> HeapJob<T> {
     pub fn new<F>(f: F) -> Self
     where
-        F: FnOnce() -> Continuation<T, K> + 'static,
+        F: FnOnce() -> State<HeapJob<T>> + 'static,
     {
         Self {
             f: Box::new(f)
@@ -225,41 +233,24 @@ impl<T, K> HeapFiber<T, K> {
     }
 }
 
-impl<T, K> Fiber for HeapFiber<T, K> {
+impl<T> Fiber for HeapJob<T> {
     type Output = T;
-    type Yld = HeapYield<T, K>;
+    type Yield = ();
 
     fn run(self) -> State<Self> {
-        match (self.f)() {
-            Continuation::Done(res) => State::Done(res),
-            Continuation::Yield(yld) => State::Yield(yld),
-        }
+        (self.f)()
     }
+
+    fn get(&mut self) -> Self::Yield {}
 }
 
-impl<T, K> Yield for HeapYield<T, K> {
-    type Fbr = HeapFiber<T, K>;
-    type Output = K;
-
-    fn fiber(self) -> Self::Fbr {
-        self.fbr
-    }
-
-    fn get(&mut self) -> Self::Output {
-        mem::take(&mut self.val).unwrap()
-    }
-}
-
-pub fn continue_with<T, K, OP>(
-    val: K,
-    f: OP,
-) -> Continuation<T, K>
+/// Specify the closure's continuation.
+pub fn continue_with<T, OP>(f: OP) -> State<HeapJob<T>>
 where
-    OP: FnOnce() -> Continuation<T, K> + 'static,
+    OP: FnOnce() -> State<HeapJob<T>> + 'static,
 {
-    Continuation::Yield(HeapYield::new(val, HeapFiber::new(f)))
+    State::Yield(HeapJob::new(f))
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -272,32 +263,22 @@ mod tests {
             Self(n, n)
         }
     }
-    struct Squared(u64, Cubed);
-
-    impl Yield for Squared {
-        type Fbr = Cubed;
-        type Output = u64;
-
-        fn fiber(self) -> Self::Fbr {
-            self.1
-        }
-
-        fn get(&mut self) -> <Self::Fbr as Fiber>::Output {
-            self.0
-        }
-    }
 
     impl Fiber for Cubed {
         type Output = u64;
-        type Yld = Squared;
+        type Yield = u64;
 
         fn run(mut self) -> State<Self> {
             if self.0 == self.1 {
                 self.1 *= self.1;
-                State::Yield(Squared(self.1, self))
+                State::Yield(self)
             } else {
                 State::Done(self.0 * self.1)
             }
+        }
+
+        fn get(&mut self) -> Self::Yield {
+            self.1
         }
     }
 
@@ -305,10 +286,10 @@ mod tests {
     fn squared_01() {
         let fbr = Cubed::new(3);
         let state = fbr.run();
-        let mut yld = state.unwrap_yield();
+        let mut yld = state.unwrap();
         assert_eq!(yld.get(), 9);
 
-        let fbr = yld.fiber();
+        let fbr = yld;
         let state = fbr.run();
         let out = state.unwrap_done();
         assert_eq!(out, 27);
@@ -322,47 +303,51 @@ mod tests {
     }
 
     #[test]
+    fn squared_complete() {
+        let fbr = Cubed::new(3);
+        let res = fbr.complete();
+        assert_eq!(res, 27);
+    }
+
+    #[test]
     fn heap_fiber_01() {
-        let fbr = HeapFiber::new(|| {
+        let fbr = HeapJob::new(|| {
             println!("Hello from fiber");
 
-            continue_with(55.5, || {
+            continue_with(|| {
                 println!("Hello from continuation");
-                Continuation::Done(5)
+                State::Done(5)
             })
         });
 
-        let mut yld = fbr.run().unwrap_yield();
-        assert_eq!(yld.get(), 55.5);
+        let fbr = fbr.run().unwrap();
         println!("Interlude");
-        let res = yld.fiber().run();
+        let res = fbr.run();
         assert_eq!(res.unwrap_done(), 5);
     }
 
     #[test]
     fn heap_fiber_02() {
-        let fbr = HeapFiber::new(|| {
+        let fbr = HeapJob::new(|| {
             println!("Hello from fiber");
 
-            continue_with(55.5, || {
+            continue_with(|| {
                 println!("Hello from continuation 1");
 
-                continue_with(44.4, || {
+                continue_with(|| {
                     println!("Hello from continuation 2");
-                    Continuation::Done(5)
+                    State::Done(5)
                 })
             })
         });
 
-        let mut yld = fbr.run().unwrap_yield();
-        assert_eq!(yld.get(), 55.5);
+        let fbr = fbr.run().unwrap();
         println!("Interlude 1");
 
-        let mut yld = yld.fiber().run().unwrap_yield();
-        assert_eq!(yld.get(), 44.4);
+        let fbr = fbr.run().unwrap();
         println!("Interlude 2");
 
-        let res = yld.fiber().run();
+        let res = fbr.run();
         assert_eq!(res.unwrap_done(), 5);
     }
 }
