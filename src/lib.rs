@@ -18,6 +18,7 @@ pub trait Fiber {
     fn into_iter(self) -> FiberIter<Self>
     where
         Self: Sized,
+        Self::Yld: Yield<Output = Self::Output>,
     {
         FiberIter::new(self)
     }
@@ -26,6 +27,7 @@ pub trait Fiber {
     fn complete(self) -> Self::Output
     where
         Self: Sized,
+        Self::Yld: Yield<Output = Self::Output>,
     {
         self.into_iter().last().unwrap()
     }
@@ -33,12 +35,14 @@ pub trait Fiber {
 
 pub trait Yield {
     type Fbr: Fiber<Yld = Self>;
+    type Output;
 
     fn fiber(self) -> Self::Fbr;
 
-    fn get(&mut self) -> <Self::Fbr as Fiber>::Output;
+    fn get(&mut self) -> Self::Output;
 }
 
+#[derive(Debug, PartialEq)]
 pub enum State<F>
 where
     F: Fiber + ?Sized,
@@ -141,6 +145,7 @@ impl<F: Fiber> FiberIter<F> {
 impl<F> Iterator for FiberIter<F>
 where
     F: Fiber,
+    F::Yld: Yield<Output = F::Output>,
 {
     type Item = F::Output;
 
@@ -160,6 +165,68 @@ where
     }
 }
 
+pub enum Continuation<T, K> {
+    Yield(HeapYield<T, K>),
+    Done(T),
+}
+
+pub struct HeapYield<T, K> {
+    val: Option<K>,
+    fbr: HeapFiber<T, K>,
+}
+
+impl<T, K> HeapYield<T, K> {
+    pub fn new(
+        val: K,
+        fbr: HeapFiber<T, K>,
+    ) -> Self {
+        Self {
+            fbr,
+            val: Some(val),
+        }
+    }
+}
+
+pub struct HeapFiber<T, K> {
+    f: Box<dyn FnOnce() -> Continuation<T, K>>,
+}
+
+impl<T, K> HeapFiber<T, K> {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce() -> Continuation<T, K> + 'static,
+    {
+        Self {
+            f: Box::new(f)
+        }
+    }
+}
+
+impl<T, K> Fiber for HeapFiber<T, K> {
+    type Output = T;
+    type Yld = HeapYield<T, K>;
+
+    fn run(self) -> State<Self> {
+        match (self.f)() {
+            Continuation::Done(res) => State::Done(res),
+            Continuation::Yield(yld) => State::Yield(yld),
+        }
+    }
+}
+
+impl<T, K> Yield for HeapYield<T, K> {
+    type Fbr = HeapFiber<T, K>;
+    type Output = K;
+
+    fn fiber(self) -> Self::Fbr {
+        self.fbr
+    }
+
+    fn get(&mut self) -> Self::Output {
+        mem::take(&mut self.val).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,6 +242,7 @@ mod tests {
 
     impl Yield for Squared {
         type Fbr = Cubed;
+        type Output = u64;
 
         fn fiber(self) -> Self::Fbr {
             self.1
@@ -217,5 +285,56 @@ mod tests {
         let fbr = Cubed::new(3);
         let res = fbr.into_iter().collect::<Vec<_>>();
         assert_eq!(res, &[9, 27]);
+    }
+
+    #[test]
+    fn heap_fiber_01() {
+        let fbr = HeapFiber::new(|| {
+            println!("Hello from fiber");
+            Continuation::Yield(HeapYield::new(
+                55.5,
+                HeapFiber::new(|| {
+                    println!("Hello from continuation");
+                    Continuation::Done(5)
+                }),
+            ))
+        });
+
+        let mut yld = fbr.run().unwrap_yield();
+        assert_eq!(yld.get(), 55.5);
+        println!("Interlude");
+        let res = yld.fiber().run();
+        assert_eq!(res.unwrap_done(), 5);
+    }
+
+    #[test]
+    fn heap_fiber_02() {
+        let fbr = HeapFiber::new(|| {
+            println!("Hello from fiber");
+            Continuation::Yield(HeapYield::new(
+                55.5,
+                HeapFiber::new(|| {
+                    println!("Hello from continuation 1");
+                    Continuation::Yield(HeapYield::new(
+                        44.4,
+                        HeapFiber::new(|| {
+                            println!("Hello from continuation 2");
+                            Continuation::Done(5)
+                        }),
+                    ))
+                }),
+            ))
+        });
+
+        let mut yld = fbr.run().unwrap_yield();
+        assert_eq!(yld.get(), 55.5);
+        println!("Interlude 1");
+
+        let mut yld = yld.fiber().run().unwrap_yield();
+        assert_eq!(yld.get(), 44.4);
+        println!("Interlude 2");
+
+        let res = yld.fiber().run();
+        assert_eq!(res.unwrap_done(), 5);
     }
 }
