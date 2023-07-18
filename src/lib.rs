@@ -7,54 +7,110 @@
 //! Fibers are a model of concurrent computation.  They are static, lightweight
 //! and particularly well-suited for cooperative multitasking.
 
-pub enum FiberState<F>
-where
-    F: Fiber,
-{
-    Pending(F::Yield, F),
-    Done(F::Final),
-}
+use std::mem;
 
-pub trait Fiber
-where
-    Self: Sized,
-{
-    type Yield;
-    type Final;
+pub trait Fiber {
+    type Output;
+    type Yld: Yield<Fbr = Self>;
 
-    fn run(self) -> FiberState<Self>;
-}
+    fn run(self) -> State<Self>;
 
-/// Continuation
-pub enum Ctn<Y, R> {
-    Pending(Y, BoxedFiber<Y, R>),
-    Done(R),
-}
-
-pub struct BoxedFiber<Y, F> {
-    f: Box<dyn FnOnce() -> Ctn<Y, F>>,
-}
-
-impl<Y, F> BoxedFiber<Y, F> {
-    pub fn new<OP>(f: OP) -> Self
+    fn into_iter(self) -> FiberIter<Self>
     where
-        OP: FnOnce() -> Ctn<Y, F> + 'static,
+        Self: Sized,
     {
-        let f = Box::new(f);
-        Self {
-            f,
+        FiberIter::new(self)
+    }
+}
+
+pub trait Yield {
+    type Fbr: Fiber<Yld = Self>;
+
+    fn fiber(self) -> Self::Fbr;
+
+    fn get(&mut self) -> <Self::Fbr as Fiber>::Output;
+}
+
+pub enum State<F>
+where
+    F: Fiber + ?Sized,
+{
+    Yield(F::Yld),
+    Done(F::Output),
+}
+
+impl<F> State<F>
+where
+    F: Fiber + ?Sized,
+{
+    /// # Panics
+    ///
+    /// Panics, if `State::Done`.
+    pub fn unwrap_yield(self) -> F::Yld {
+        match self {
+            State::Yield(yld) => yld,
+            State::Done(_) => panic!("state is Yield"),
+        }
+    }
+
+    /// # Panics
+    ///
+    /// Panics, if `State::Yield`.
+    pub fn unwrap_done(self) -> F::Output {
+        match self {
+            State::Yield(_) => panic!("state is Done"),
+            State::Done(out) => out,
+        }
+    }
+
+    pub fn is_yield(&self) -> bool {
+        match self {
+            State::Yield(_) => true,
+            State::Done(_) => false,
+        }
+    }
+
+    pub fn is_done(&self) -> bool {
+        match self {
+            State::Yield(_) => false,
+            State::Done(_) => true,
         }
     }
 }
 
-impl<Y, F> Fiber for BoxedFiber<Y, F> {
-    type Final = F;
-    type Yield = Y;
+pub struct FiberIter<F>
+where
+    F: Fiber,
+{
+    fbr: Option<F>,
+}
 
-    fn run(self) -> FiberState<Self> {
-        match (self.f)() {
-            Ctn::Pending(y, fibr) => FiberState::Pending(y, fibr),
-            Ctn::Done(res) => FiberState::Done(res),
+impl<F: Fiber> FiberIter<F> {
+    pub fn new(fbr: F) -> Self {
+        Self {
+            fbr: Some(fbr)
+        }
+    }
+}
+
+impl<F> Iterator for FiberIter<F>
+where
+    F: Fiber,
+{
+    type Item = F::Output;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(fbr) = mem::take(&mut self.fbr) {
+            match fbr.run() {
+                State::Yield(mut yld) => {
+                    let res = yld.get();
+                    mem::swap(&mut self.fbr, &mut Some(yld.fiber()));
+                    Some(res)
+                }
+                State::Done(res) => Some(res),
+            }
+        } else {
+            None
         }
     }
 }
@@ -63,26 +119,58 @@ impl<Y, F> Fiber for BoxedFiber<Y, F> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn boxed_fiber_01() {
-        let fibr = BoxedFiber::new(|| {
-            println!("Hello from fiber");
-            Ctn::Pending(
-                (),
-                BoxedFiber::new(|| {
-                    println!("Hello from continuation");
-                    Ctn::Done(())
-                }),
-            )
-        });
+    struct Cubed(u64, u64);
 
-        let mut state = fibr.run();
-        println!("Interlude");
-        if let FiberState::Pending(_, fibr) = state {
-            state = fibr.run();
+    impl Cubed {
+        fn new(n: u64) -> Self {
+            Self(n, n)
         }
-        if let FiberState::Done(_) = state {
-            println!("Done.");
+    }
+    struct Squared(u64, Cubed);
+
+    impl Yield for Squared {
+        type Fbr = Cubed;
+
+        fn fiber(self) -> Self::Fbr {
+            self.1
         }
+
+        fn get(&mut self) -> <Self::Fbr as Fiber>::Output {
+            self.0
+        }
+    }
+
+    impl Fiber for Cubed {
+        type Output = u64;
+        type Yld = Squared;
+
+        fn run(mut self) -> State<Self> {
+            if self.0 == self.1 {
+                self.1 *= self.1;
+                State::Yield(Squared(self.1, self))
+            } else {
+                State::Done(self.0 * self.1)
+            }
+        }
+    }
+
+    #[test]
+    fn squared_01() {
+        let fbr = Cubed::new(3);
+        let state = fbr.run();
+        let mut yld = state.unwrap_yield();
+        assert_eq!(yld.get(), 9);
+
+        let fbr = yld.fiber();
+        let state = fbr.run();
+        let out = state.unwrap_done();
+        assert_eq!(out, 27);
+    }
+
+    #[test]
+    fn squared_iter() {
+        let fbr = Cubed::new(3);
+        let res = fbr.into_iter().collect::<Vec<_>>();
+        assert_eq!(res, &[9, 27]);
     }
 }
