@@ -45,8 +45,8 @@ where
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
-    /// The fiber's final output is given to as argument
-    /// to the supplied closure.
+    /// The fiber's final output is given to the supplied closure
+    /// as an argument.
     fn into_iter<OP>(
         self,
         f: OP,
