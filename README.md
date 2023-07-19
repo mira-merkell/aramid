@@ -1,15 +1,19 @@
 # aramid 🧵
 
-Synthetic fibers!
+[![Test](https://github.com/mira-merkell/aramid/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/mira-merkell/aramid/actions/workflows/test.yml)
+[![Docs](https://github.com/mira-merkell/aramid/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/mira-merkell/aramid/actions/workflows/docs.yml)
 
-- _very much_ WIP 🚧
-- [Fibers][wikipedia-fibers] are little state machines that behave like
+Synthetic fibers and Rust.
+
+- _very much_ WIP:  If you want to use it, please come back in 6 months. 🚧
+  If you'd like to help hacking, welcome aboard! 💨⛵
+- [Fibers][wikipedia-fibers] are little state machines that behave like stackful
   coroutines: when spun, they yield and yield, and then they return. In the
   meantime, they carry their stack around with them.
-- Fibers are a model of concurrent computation. They are static, lightweight and
+- Fibers are a model of concurrent computation. They are simple, lightweight and
   well-suited for cooperative multitasking.
-- Fibers can represent iterators over their yielded values; and closures can be
-  [fibers that live on the heap][api-heapjob].
+- Fibers can be turned into iterators over their yielded values; and closures with
+  their continuations can be [fibers that live on the heap][api-heapjob].
 
 ## Getting started
 
