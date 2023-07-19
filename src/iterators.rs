@@ -8,14 +8,14 @@ use crate::{
 /// Iterator over yielded values of a fiber.
 ///
 /// The fiber's final output is ignored.
-pub struct FiberIter<F>
+pub struct FbrIter<F>
 where
     F: Fiber,
 {
     fbr: Option<F>,
 }
 
-impl<F: Fiber> FiberIter<F> {
+impl<F: Fiber> FbrIter<F> {
     pub fn new(fbr: F) -> Self {
         Self {
             fbr: Some(fbr)
@@ -23,7 +23,7 @@ impl<F: Fiber> FiberIter<F> {
     }
 }
 
-impl<F> Iterator for FiberIter<F>
+impl<F> Iterator for FbrIter<F>
 where
     F: Fiber,
 {
@@ -45,7 +45,7 @@ where
     }
 }
 
-pub(crate) struct FiberComplete<F, OP>
+pub(crate) struct FbrComplete<F, OP>
 where
     F: Fiber,
     OP: FnMut(&mut F),
@@ -54,7 +54,7 @@ where
     f:   OP,
 }
 
-impl<F, OP> FiberComplete<F, OP>
+impl<F, OP> FbrComplete<F, OP>
 where
     F: Fiber,
     OP: FnMut(&mut F),
@@ -70,7 +70,7 @@ where
     }
 }
 
-impl<F, OP> Iterator for FiberComplete<F, OP>
+impl<F, OP> Iterator for FbrComplete<F, OP>
 where
     F: Fiber,
     OP: FnMut(&mut F),

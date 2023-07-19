@@ -16,8 +16,8 @@
 //! live on the heap](crate::HeapJob).
 
 mod iterators;
-use iterators::FiberComplete;
-pub use iterators::FiberIter;
+use iterators::FbrComplete;
+pub use iterators::FbrIter;
 
 /// Lightweight coroutines for cooperative multitasking.
 pub trait Fiber
@@ -36,8 +36,8 @@ where
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
     /// The final return value is ignored.
-    fn into_iter(self) -> FiberIter<Self> {
-        FiberIter::new(self)
+    fn into_iter(self) -> FbrIter<Self> {
+        FbrIter::new(self)
     }
 
     /// Run the fiber to completion.
@@ -50,7 +50,7 @@ where
     where
         OP: FnMut(&mut Self),
     {
-        FiberComplete::new(self, f).last().unwrap().unwrap()
+        FbrComplete::new(self, f).last().unwrap().unwrap()
     }
 }
 
