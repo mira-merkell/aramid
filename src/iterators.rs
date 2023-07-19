@@ -9,8 +9,12 @@ use crate::{
 
 /// Iterator over values yielded by a fiber.
 ///
-/// The fiber's final output is given to as argument
-/// to the supplied closure.
+/// The fiber's final output is given to the supplied closure as an argument.
+///
+/// This iterator is usually created by calling
+/// [`Fiber::into_inter()`][fiber-into_iter].  See that method for more details.
+///
+/// [fiber-into_iter]: crate::Fiber::into_iter()
 pub struct Iter<F, OP>
 where
     F: Fiber,
@@ -62,6 +66,7 @@ where
     }
 }
 
+// Iterator used to implement `Fiber::complete()`.
 pub(crate) struct IterComplete<F, OP>
 where
     F: Fiber,
@@ -110,6 +115,17 @@ where
     }
 }
 
+/// Implementation of the [`Fiber`][fiber-trait] trait for
+/// [`Iterators`][std-iterator].  
+///
+/// Typically, you wouldn't need to create this struct directly. Instead,
+/// you can import the trait [`FiberIterator`][fiber-iterator-trait]
+/// and call [`into_fiber()`][into-fiber] on an iterator directly.
+///
+/// [fiber-trait]: crate::Fiber
+/// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
+/// [fiber-iterator-trait]: crate::FiberIterator
+/// [into-fiber]: crate::FiberIterator::into_fiber()
 pub struct FiberIter<I, K>
 where
     I: Iterator,
@@ -155,6 +171,17 @@ where
     }
 }
 
+/// Implementation of the [`Fiber`][fiber-trait] trait for
+/// [`Iterators`][std-iterator].  
+///
+/// Typically, you wouldn't need to create this struct directly. Instead,
+/// you can import the trait [`FiberIterator`][fiber-iterator-trait]
+/// and call [`into_fiber_lazy()`][into-fiber-lazy] on an iterator directly.
+///
+/// [fiber-trait]: crate::Fiber
+/// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
+/// [fiber-iterator-trait]: crate::FiberIterator
+/// [into-fiber-lazy]: crate::FiberIterator::into_fiber_lazy()
 pub struct FiberIterLazy<I, K, OP>
 where
     I: Iterator,
@@ -209,6 +236,22 @@ pub trait FiberIterator: Iterator + Sized {
     /// produced by the iterator.
     ///
     /// The fiber's final output is given as argument.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::Fiber;
+    /// use aramid::FiberIterator;
+    ///
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = fiber.complete(|fbr| coll.push(fbr.get()));
+    ///
+    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(result, 55.5);
+    /// ```
     fn into_fiber<K>(
         self,
         output: K,
@@ -220,6 +263,22 @@ pub trait FiberIterator: Iterator + Sized {
     /// produced by the iterator.
     ///
     /// The fiber's final output is lazily evaluated at the end of iteration.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::Fiber;
+    /// use aramid::FiberIterator;
+    ///
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber_lazy(|| output == 3.14);
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = fiber.complete(|fbr| coll.push(fbr.get()));
+    ///
+    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(result, false);
+    /// ```
     fn into_fiber_lazy<K, OP>(
         self,
         f: OP,
