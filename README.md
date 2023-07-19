@@ -3,7 +3,7 @@
 [![Test](https://github.com/mira-merkell/aramid/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/mira-merkell/aramid/actions/workflows/test.yml)
 [![Docs](https://github.com/mira-merkell/aramid/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/mira-merkell/aramid/actions/workflows/docs.yml)
 
-Synthetic fibers!
+Synthetic fibers and Rust.
 
 - _very much_ WIP 🚧
 - [Fibers][wikipedia-fibers] are little state machines that behave like stackful
