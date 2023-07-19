@@ -3,13 +3,13 @@
 Synthetic fibers!
 
 - _very much_ WIP 🚧
-- [Fibers][wikipedia-fibers] are little state machines that behave like
+- [Fibers][wikipedia-fibers] are little state machines that behave like stackful
   coroutines: when spun, they yield and yield, and then they return. In the
   meantime, they carry their stack around with them.
-- Fibers are a model of concurrent computation. They are static, lightweight and
+- Fibers are a model of concurrent computation. They are simple, lightweight and
   well-suited for cooperative multitasking.
-- Fibers can represent iterators over their yielded values; and closures can be
-  [fibers that live on the heap][api-heapjob].
+- Fibers can be turned into iterators over their yielded values; and closures with
+  their continuations can be [fibers that live on the heap][api-heapjob].
 
 ## Getting started
 
