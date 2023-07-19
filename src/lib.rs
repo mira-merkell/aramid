@@ -244,7 +244,7 @@ where
     /// let mut state = fiber.run();
     ///
     /// let mut peek = None;
-    /// let check = state.done_or(|fbr| peek = Some(fbr.get()));
+    /// let check = state.done_or(|fbr| peek = fbr.get());
     /// assert_eq!(check, None);
     /// assert_eq!(peek, Some(0));
     ///
@@ -284,13 +284,13 @@ where
     /// let fiber = (0..1).into_fiber(output);
     /// let mut state = fiber.run();
     ///
-    /// assert!(state.yield_and(|fbr| fbr.get() == 0).unwrap());
+    /// assert!(state.yield_and(|fbr| fbr.get() == Some(0)).unwrap());
     ///
     /// let fiber = state.unwrap();
     /// let mut state = fiber.run();
     ///
     /// assert_eq!(state, State::Done(output));
-    /// assert_eq!(state.yield_and(|fbr| fbr.get() == 0), None);
+    /// assert_eq!(state.yield_and(|fbr| fbr.get() == Some(0)), None);
     /// ```
     pub fn yield_and<OP, T>(
         &mut self,

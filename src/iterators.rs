@@ -37,6 +37,7 @@ use crate::{
 /// [`Fiber::into_inter()`][fiber-into_iter].  See that method for more details.
 ///
 /// [fiber-into_iter]: crate::Fiber::into_iter()
+#[derive(Debug, PartialEq)]
 pub struct Iter<F, OP>
 where
     F: Fiber,
@@ -148,6 +149,7 @@ where
 /// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 /// [fiber-iterator-trait]: crate::FiberIterator
 /// [into-fiber]: crate::FiberIterator::into_fiber()
+#[derive(Debug, PartialEq)]
 pub struct FiberIter<I, T>
 where
     I: Iterator,
@@ -204,6 +206,7 @@ where
 /// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 /// [fiber-iterator-trait]: crate::FiberIterator
 /// [into-fiber-lazy]: crate::FiberIterator::into_fiber_lazy()
+#[derive(Debug, PartialEq)]
 pub struct FiberIterLazy<I, T, OP>
 where
     I: Iterator,
