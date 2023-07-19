@@ -5,7 +5,8 @@
 
 Synthetic fibers and Rust.
 
-- _very much_ WIP 🚧
+- _very much_ WIP:  If you want to use it, please come back in 6 months. 🚧
+  If you'd like to help hacking, welcome aboard! 💨⛵
 - [Fibers][wikipedia-fibers] are little state machines that behave like stackful
   coroutines: when spun, they yield and yield, and then they return. In the
   meantime, they carry their stack around with them.
