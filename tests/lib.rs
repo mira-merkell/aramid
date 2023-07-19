@@ -5,7 +5,7 @@ use aramid::{
     State,
 };
 
-mod itertors;
+mod iterators;
 
 struct Cubed(u64, u64);
 

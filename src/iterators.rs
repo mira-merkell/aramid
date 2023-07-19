@@ -1,5 +1,27 @@
 //! `Iterator` ⇋ `Fiber` interface
-
+//!
+//! The library provides a convenient interface between fibers and iterators.
+//! On the one hand, there is [`Fiber::into_iter()`][fiber-into-iter] method
+//! that consumes the fiber and return an iterator over its yielded values;
+//! on the other, any iterator can be easily turned into a fiber by invoking
+//! `into_fiber()` or `into_fiber_lazy()` from the extension trait
+//! [`FiberIterator`][fiber-iterator].
+//!
+//! The main difference between fibers and iterators is that the `Fiber` trait
+//! specifies *two* associated types: `Yield` and `Output`, whereas in order to
+//! implement [`Iterator`][std-iterator] only one type: `Item` suffices.  Thanks
+//! to that, fibers producing different types can be easily chained into
+//! powerful state machines.
+//!
+//! Please note also that the method `Iterator::next()` take the iterator by
+//! mutable reference, whereas the analogous `Fiber::run()` consumes the fiber
+//! and produces either a new one (or a modified version of itself), or the
+//! final output wrapped in [`State`][state]
+//!
+//! [fiber-into-iter]: crate::Fiber::into_iter()
+//! [fiber-iterator]: crate::FiberIterator
+//! [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
+//! [state]: crate::State
 use std::mem;
 
 use crate::{
@@ -172,7 +194,7 @@ where
 }
 
 /// Implementation of the [`Fiber`][fiber-trait] trait for
-/// [`Iterators`][std-iterator].  
+/// [`Iterators`][std-iterator], evaluating lazily its final output.
 ///
 /// Typically, you wouldn't need to create this struct directly. Instead,
 /// you can import the trait [`FiberIterator`][fiber-iterator-trait]
