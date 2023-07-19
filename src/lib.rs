@@ -15,11 +15,24 @@
 //!
 //! ## Fibers and Iterators
 //!
-//! Additionally, fibers can be turned into iterators over their yielded
-//! values...
+//! The library provides a convenient interface between fibers and iterators.
+//! On the one hand, there is [`Fiber::into_iter()`][fiber-into-iter] method
+//! that consumes the fiber and return an iterator over its yielded values;
+//! on the other, any iterator can be easily turned into a fiber by invoking
+//! `into_fiber()` or `into_fiber_lazy()` from the extension trait
+//! [`FiberIterator`][fiber-iterator].
 //!
-//! See [`iterators`][module-iterators] for more details.
+//! The main difference between fibers and iterators is that the `Fiber` trait
+//! specifies *two* associated types: `Yield` and `Output`, whereas in order to
+//! implement [`Iterator`][std-iterator] only one type: `Item` suffices.  Thanks
+//! to that, fibers producing different types can be easily chained into
+//! powerful state machines.
 //!
+//! See [`iterators`][module-iterators] module for more details.
+//!
+//! [fiber-into-iter]: crate::Fiber::into_iter()
+//! [fiber-iterator]: crate::FiberIterator
+//! [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 //! [module-iterators]: crate::iterators
 
 pub mod iterators;
@@ -90,6 +103,21 @@ where
     ///
     /// The fiber's final output is given to the supplied closure
     /// as an argument.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut result = 0.;
+    /// let iter = fiber.into_iter(|x| result = x);
+    /// let coll = iter.collect::<Vec<_>>();
+    ///
+    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(result, output);
+    /// ```
     fn into_iter<OP>(
         self,
         f: OP,
@@ -102,7 +130,21 @@ where
 
     /// Run the fiber to completion.
     ///
-    /// Call `OP` on each of the yielded fibers.  Return final output.
+    /// Call `OP` on each of the yielded fibers.  Return the final output.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = fiber.complete(|x| coll.push(x.get()));
+    ///
+    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(result, output);
+    /// ```
     fn complete<OP>(
         self,
         f: OP,
@@ -110,7 +152,10 @@ where
     where
         OP: FnMut(&mut Self),
     {
-        IterComplete::new(self, f).last().unwrap().unwrap()
+        IterComplete::new(self, f)
+            .last()
+            .expect("iterator should produce at least one value")
+            .expect("iterator should wrap values in Some")
     }
 }
 

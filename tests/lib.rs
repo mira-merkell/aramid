@@ -5,6 +5,8 @@ use aramid::{
     State,
 };
 
+mod iterators;
+
 struct Cubed(u64, u64);
 
 impl Cubed {
