@@ -183,12 +183,26 @@ where
 {
     /// Run fiber if the state is `Yield`.
     ///
-    /// Returns the new yielded fiber wrapped in Some, or
-    /// None, if the state was already `Done`.
-    pub fn advance(self) -> Option<Self> {
+    /// Returns the new yielded value wrapped in Self.
+    /// If the state is already `Done`, this is a noop.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let fiber = (1..1).into_fiber(output);
+    /// 
+    /// let state = fiber.run();
+    /// assert!(state.is_done());
+    ///
+    /// let new_state = state.advance();
+    /// assert!(new_state.is_done());
+    /// ```
+    pub fn advance(self) -> Self {
         match self {
-            Self::Done(_) => None,
-            Self::Yield(fbr) => Some(fbr.run()),
+            Self::Yield(fbr) => fbr.run(),
+            Self::Done(_) => self,
         }
     }
 

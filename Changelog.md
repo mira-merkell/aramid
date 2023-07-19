@@ -12,6 +12,7 @@
 - Add `Fiber::get_unchecked()`
 - API change: `into_inter()` takes a closure.
 - API change: `Fiber::get()` returns `Option<_>` now
+- API change: `State::advance()` returns Self.
 
 ### 0.2.2 (18/07/2023)
 
