@@ -49,7 +49,7 @@ where
                 State::Yield(mut yld) => {
                     let res = yld.get();
                     mem::swap(&mut self.fbr, &mut Some(yld));
-                    Some(res)
+                    res
                 }
                 State::Done(res) => {
                     (self.f)(res);
@@ -150,8 +150,8 @@ where
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        mem::take(&mut self.val).unwrap()
+    fn get(&mut self) -> Option<<I as Iterator>::Item> {
+        mem::take(&mut self.val)
     }
 }
 
@@ -198,8 +198,8 @@ where
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        mem::take(&mut self.val).unwrap()
+    fn get(&mut self) -> Option<<I as Iterator>::Item> {
+        mem::take(&mut self.val)
     }
 }
 
@@ -239,11 +239,11 @@ fn iterator_ext_trait() {
     let fbr = iter.into_fiber(11.1);
 
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 0);
+    assert_eq!(fbr.get(), Some(0));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 1);
+    assert_eq!(fbr.get(), Some(1));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 2);
+    assert_eq!(fbr.get(), Some(2));
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 11.1);
@@ -255,11 +255,11 @@ fn iterator_ext_trait_lazy() {
     let fbr = iter.into_fiber_lazy(|| 77.7);
 
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 0);
+    assert_eq!(fbr.get(), Some(0));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 1);
+    assert_eq!(fbr.get(), Some(1));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 2);
+    assert_eq!(fbr.get(), Some(2));
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 77.7);

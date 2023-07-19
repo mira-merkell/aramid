@@ -5,6 +5,7 @@
 ### 0.2.3 (??/??/??)
 
 - Add `Iterator <--> Fiber` interface.
+- Add `Fiber::get_unchecked()`
 - API change: `into_inter()` takes a closure.
 - API change: `Fiber::get()` returns `Option<_>` now
 

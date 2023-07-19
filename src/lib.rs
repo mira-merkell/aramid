@@ -43,11 +43,48 @@ where
     /// Retrieve the yielded value.
     ///
     /// Note that the type `Self::Yield` doesn't need to be
-    /// Clone nor Copy.  The fiber would rather move the value out
-    /// from its own internals.  Hence, the yielded value is wrapped
-    /// in Option<_>.  If, e.g. the value cannot be copied the second
-    /// time, the fiber is free to return None.
+    /// [`Clone`][std-trait-clone] nor [`Copy`][std-trait-copy].  The
+    /// fiber would rather move the value out of its own internals.  Hence,
+    /// the yielded value is wrapped in `Option<_>`.  If, e.g. the value cannot
+    /// be copied the second time, the fiber is free to return None.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let mut fiber = (1..2).into_fiber(output).run().unwrap();
+    ///
+    /// assert_eq!(fiber.get(), Some(1));
+    /// ```
+    ///
+    /// [std-trait-clone]: https://doc.rust-lang.org/std/clone/trait.Clone.html
+    /// [std-trait-copy]: https://doc.rust-lang.org/std/marker/trait.Copy.html
     fn get(&mut self) -> Option<Self::Yield>;
+
+    /// Retrieve the yielded value unchecked.
+    ///
+    /// The default implementation simply unwraps the value obtained by calling
+    /// [`get()`](crate::Fiber::get()). The user can override this method to
+    /// provide a more efficient implementation.
+    ///
+    /// # Panics
+    ///
+    /// By default, this method will panic, if the value returned by `get()` is
+    /// `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let mut fiber = (1..2).into_fiber(output).run().unwrap();
+    ///
+    /// assert_eq!(fiber.get_unchecked(), 1);
+    /// ```
+    fn get_unchecked(&mut self) -> Self::Yield {
+        self.get().expect("cannot retrieve yielded value")
+    }
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
