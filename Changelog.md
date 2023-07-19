@@ -2,22 +2,22 @@
 
 ## 0.2
 
-### 0.2.3 (??/??/??)
+### 0.2.3 (20/07/2023)
 
 - Add `Iterator <--> Fiber` interface.
-- Add `State::complete()`
-- API change:
-  - `into_inter()` takes a closure.
+- Add new methods: `State::complete()`, `Fiber::get_unchecked()`
+- API breaking changes:
+  - `State::advance()` returns Self
   - `State::done_or()` and `::yield_and()` take `&mut`
-- Add `Fiber::get_unchecked()`
-- API change: `into_inter()` takes a closure.
-- API change: `Fiber::get()` returns `Option<_>` now
-- API change: `State::advance()` returns Self.
+  - `Fiber::get()` returns `Option<_>`
+  - `Fiber::into_inter()` takes a closure.
+- Expand documentation and test suite.
 
 ### 0.2.2 (18/07/2023)
 
 - Add example: [`monster.rs`](./examples/monster.rs)
-- API change: `Fiber::complete()` now calls a closure on every yielded value
+- API breaking changes:
+  - `Fiber::complete()` now calls a closure on every yielded value
 
 ### v0.2.1 (18/07/2023)
 
