@@ -5,7 +5,10 @@
 ### 0.2.3 (??/??/??)
 
 - Add `Iterator <--> Fiber` interface.
-- API change: `into_inter()` takes a closure.
+- Add `State::complete()`
+- API change: 
+    - `into_inter()` takes a closure.
+    - `State::done_or()` and `::yield_and()` take `&mut` 
 
 ### 0.2.2 (18/07/2023)
 
