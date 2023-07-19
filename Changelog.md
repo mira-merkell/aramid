@@ -2,8 +2,10 @@
 
 ## 0.2
 
-### 0.2.3 (??/??/????)
+### 0.2.3 (??/??/??)
 
+- Add `Iterator <--> Fiber` interface.
+- API change: `into_inter()` takes a closure.
 - API change: `Fiber::get()` returns `Option<_>` now
 
 ### 0.2.2 (18/07/2023)

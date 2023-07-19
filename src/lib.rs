@@ -10,12 +10,24 @@
 //!
 //! The enum [`State`](crate::State) contains utility methods for processing
 //! yielded values, not unlike the Standard Library's `Result` or `Option`.
+//! Closures that return a `State` can be turned into [fibers that live on the
+//! heap](crate::HeapJob).
+//!
+//! ## Fibers and Iterators
 //!
 //! Additionally, fibers can be turned into iterators over their yielded
-//! values; and closures that return a `State` can be turned into [fibers that
-//! live on the heap](crate::HeapJob).
+//! values...
+//!
+//! See [`iterators`][module-iterators] for more details.
+//!
+//! [module-iterators]: crate::iterators
 
-use std::mem;
+pub mod iterators;
+pub use iterators::FiberIterator;
+use iterators::{
+    Iter,
+    IterComplete,
+};
 
 /// Lightweight coroutines for cooperative multitasking.
 pub trait Fiber
@@ -39,9 +51,16 @@ where
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
-    /// The final return value is ignored.
-    fn into_iter(self) -> FiberIter<Self> {
-        FiberIter::new(self)
+    /// The fiber's final output is given to the supplied closure
+    /// as an argument.
+    fn into_iter<OP>(
+        self,
+        f: OP,
+    ) -> Iter<Self, OP>
+    where
+        OP: FnMut(Self::Output),
+    {
+        Iter::new(self, f)
     }
 
     /// Run the fiber to completion.
@@ -54,7 +73,7 @@ where
     where
         OP: FnMut(&mut Self),
     {
-        FiberComplete::new(self, f).last().unwrap().unwrap()
+        IterComplete::new(self, f).last().unwrap().unwrap()
     }
 }
 
@@ -151,94 +170,6 @@ where
         match self {
             Self::Done(_) => None,
             Self::Yield(fbr) => Some(fbr.run()),
-        }
-    }
-}
-
-/// Iterator over yielded values of a fiber.
-///
-/// The fiber's final output is ignored.
-pub struct FiberIter<F>
-where
-    F: Fiber,
-{
-    fbr: Option<F>,
-}
-
-impl<F: Fiber> FiberIter<F> {
-    pub fn new(fbr: F) -> Self {
-        Self {
-            fbr: Some(fbr)
-        }
-    }
-}
-
-impl<F> Iterator for FiberIter<F>
-where
-    F: Fiber,
-{
-    type Item = F::Yield;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(fbr) = mem::take(&mut self.fbr) {
-            match fbr.run() {
-                State::Yield(mut yld) => {
-                    let res = yld.get();
-                    mem::swap(&mut self.fbr, &mut Some(yld));
-                    res
-                }
-                State::Done(_) => None,
-            }
-        } else {
-            None
-        }
-    }
-}
-
-struct FiberComplete<F, OP>
-where
-    F: Fiber,
-    OP: FnMut(&mut F),
-{
-    fbr: Option<F>,
-    f:   OP,
-}
-
-impl<F, OP> FiberComplete<F, OP>
-where
-    F: Fiber,
-    OP: FnMut(&mut F),
-{
-    fn new(
-        fbr: F,
-        f: OP,
-    ) -> Self {
-        Self {
-            fbr: Some(fbr),
-            f,
-        }
-    }
-}
-
-impl<F, OP> Iterator for FiberComplete<F, OP>
-where
-    F: Fiber,
-    OP: FnMut(&mut F),
-{
-    type Item = Option<F::Output>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(fbr) = mem::take(&mut self.fbr) {
-            match fbr.run() {
-                State::Yield(mut yld) => {
-                    (self.f)(&mut yld);
-                    mem::swap(&mut self.fbr, &mut Some(yld));
-                    Some(None)
-                }
-                State::Done(res) => Some(Some(res)),
-            }
-        } else {
-            None
         }
     }
 }

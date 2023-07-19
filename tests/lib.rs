@@ -47,18 +47,28 @@ fn squared_01() {
 #[test]
 fn squared_iter() {
     let fbr = Cubed::new(3);
-    let res = fbr.into_iter().collect::<Vec<_>>();
-    assert_eq!(res, &[9,]);
+    let mut res = 0;
+    let collected = fbr
+        .into_iter(|x| {
+            res = x;
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(collected, &[9,]);
+    assert_eq!(res, 27);
 }
 
 #[test]
 fn squared_iter_try_resume() {
-    let mut iter = Cubed::new(3).into_iter();
+    let mut res = 0;
+    let mut iter = Cubed::new(3).into_iter(|x| {
+        res = x;
+    });
 
     assert_eq!(iter.next(), Some(9));
     assert_eq!(iter.next(), None);
 
     assert_eq!(iter.next(), None);
+    assert_eq!(res, 27);
 }
 
 #[test]
