@@ -10,18 +10,23 @@
 //!
 //! The enum [`State`](crate::State) contains utility methods for processing
 //! yielded values, not unlike the Standard Library's `Result` or `Option`.
+//! Closures that return a `State` can be turned into [fibers that live on the
+//! heap](crate::HeapJob).
+//!
+//! ## Fibers and Iterators
 //!
 //! Additionally, fibers can be turned into iterators over their yielded
-//! values; and closures that return a `State` can be turned into [fibers that
-//! live on the heap](crate::HeapJob).
+//! values...
+//!
+//! See [`iterators`][module-iterators] for more details.
+//!
+//! [module-iterators]: crate::iterators
 
-mod iterators;
-use iterators::IterComplete;
-pub use iterators::{
-    FiberIter,
-    FiberIterLazy,
-    FiberIterator,
+pub mod iterators;
+pub use iterators::FiberIterator;
+use iterators::{
     Iter,
+    IterComplete,
 };
 
 /// Lightweight coroutines for cooperative multitasking.

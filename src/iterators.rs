@@ -1,4 +1,4 @@
-//! Iterator <--> Fiber interface
+//! `Iterator` ⇋ `Fiber` interface
 
 use std::mem;
 
