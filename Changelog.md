@@ -6,9 +6,12 @@
 
 - Add `Iterator <--> Fiber` interface.
 - Add `State::complete()`
-- API change: 
-    - `into_inter()` takes a closure.
-    - `State::done_or()` and `::yield_and()` take `&mut` 
+- API change:
+  - `into_inter()` takes a closure.
+  - `State::done_or()` and `::yield_and()` take `&mut`
+- Add `Fiber::get_unchecked()`
+- API change: `into_inter()` takes a closure.
+- API change: `Fiber::get()` returns `Option<_>` now
 
 ### 0.2.2 (18/07/2023)
 

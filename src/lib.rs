@@ -15,11 +15,24 @@
 //!
 //! ## Fibers and Iterators
 //!
-//! Additionally, fibers can be turned into iterators over their yielded
-//! values...
+//! The library provides a convenient interface between fibers and iterators.
+//! On the one hand, there is [`Fiber::into_iter()`][fiber-into-iter] method
+//! that consumes the fiber and return an iterator over its yielded values;
+//! on the other, any iterator can be easily turned into a fiber by invoking
+//! `into_fiber()` or `into_fiber_lazy()` from the extension trait
+//! [`FiberIterator`][fiber-iterator].
 //!
-//! See [`iterators`][module-iterators] for more details.
+//! The main difference between fibers and iterators is that the `Fiber` trait
+//! specifies *two* associated types: `Yield` and `Output`, whereas in order to
+//! implement [`Iterator`][std-iterator] only one type: `Item` suffices.  Thanks
+//! to that, fibers producing different types can be easily chained into
+//! powerful state machines.
 //!
+//! See [`iterators`][module-iterators] module for more details.
+//!
+//! [fiber-into-iter]: crate::Fiber::into_iter()
+//! [fiber-iterator]: crate::FiberIterator
+//! [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 //! [module-iterators]: crate::iterators
 
 pub mod iterators;
@@ -34,19 +47,82 @@ pub trait Fiber
 where
     Self: Sized,
 {
+    /// The type of the yielded values.
     type Yield;
+    /// The type of the final output produced by the fiber.
     type Output;
 
     /// Run the fiber until it yields.
     fn run(self) -> State<Self>;
 
     /// Retrieve the yielded value.
-    fn get(&mut self) -> Self::Yield;
+    ///
+    /// Note that the type `Self::Yield` doesn't need to be
+    /// [`Clone`][std-trait-clone] nor [`Copy`][std-trait-copy].  The
+    /// fiber would rather move the value out of its own internals.  Hence,
+    /// the yielded value is wrapped in `Option<_>`.  If, e.g. the value cannot
+    /// be copied the second time, the fiber is free to return None.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let mut fiber = (1..2).into_fiber(output).run().unwrap();
+    ///
+    /// assert_eq!(fiber.get(), Some(1));
+    /// ```
+    ///
+    /// [std-trait-clone]: https://doc.rust-lang.org/std/clone/trait.Clone.html
+    /// [std-trait-copy]: https://doc.rust-lang.org/std/marker/trait.Copy.html
+    fn get(&mut self) -> Option<Self::Yield>;
+
+    /// Retrieve the yielded value unchecked.
+    ///
+    /// The default implementation simply unwraps the value obtained by calling
+    /// [`get()`](crate::Fiber::get()). The user can override this method to
+    /// provide a more efficient implementation.
+    ///
+    /// # Panics
+    ///
+    /// By default, this method will panic, if the value returned by `get()` is
+    /// `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let mut fiber = (1..2).into_fiber(output).run().unwrap();
+    ///
+    /// assert_eq!(fiber.get_unchecked(), 1);
+    /// ```
+    fn get_unchecked(&mut self) -> Self::Yield {
+        self.get().expect("cannot retrieve yielded value")
+    }
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
+    /// The values are obtained by calling `Fiber::get()`, hence are of the
+    /// type: `Option<Self::Yield>`.
+    ///
     /// The fiber's final output is given to the supplied closure
     /// as an argument.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut result = 0.;
+    /// let iter = fiber.into_iter(|x| result = x);
+    /// let coll = iter.collect::<Vec<_>>();
+    ///
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
+    /// assert_eq!(result, output);
+    /// ```
     fn into_iter<OP>(
         self,
         f: OP,
@@ -59,7 +135,21 @@ where
 
     /// Run the fiber to completion.
     ///
-    /// Call `OP` on each of the yielded fibers.  Return final output.
+    /// Call `OP` on each of the yielded fibers.  Return the final output.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = fiber.complete(|x| coll.push(x.get()));
+    ///
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
+    /// assert_eq!(result, output);
+    /// ```
     fn complete<OP>(
         self,
         f: OP,
@@ -67,12 +157,16 @@ where
     where
         OP: FnMut(&mut Self),
     {
-        IterComplete::new(self, f).last().unwrap().unwrap()
+        IterComplete::new(self, f)
+            .last()
+            .expect("iterator should produce at least one value")
+            .expect("iterator should wrap values in Some")
     }
 }
 
 /// State of the fiber
 #[derive(Debug, PartialEq)]
+#[must_use]
 pub enum State<F>
 where
     F: Fiber,
@@ -256,7 +350,9 @@ impl<T> Fiber for HeapJob<T> {
         (self.f)()
     }
 
-    fn get(&mut self) -> Self::Yield {}
+    fn get(&mut self) -> Option<Self::Yield> {
+        None
+    }
 }
 
 /// Specify the closure's continuation.

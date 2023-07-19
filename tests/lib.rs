@@ -5,6 +5,8 @@ use aramid::{
     State,
 };
 
+mod iterators;
+
 struct Cubed(u64, u64);
 
 impl Cubed {
@@ -26,8 +28,8 @@ impl Fiber for Cubed {
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        self.1
+    fn get(&mut self) -> Option<Self::Yield> {
+        Some(self.1)
     }
 }
 
@@ -36,7 +38,7 @@ fn squared_01() {
     let fbr = Cubed::new(3);
     let state = fbr.run();
     let mut yld = state.unwrap();
-    assert_eq!(yld.get(), 9);
+    assert_eq!(yld.get(), Some(9));
 
     let fbr = yld;
     let state = fbr.run();
@@ -53,7 +55,7 @@ fn squared_iter() {
             res = x;
         })
         .collect::<Vec<_>>();
-    assert_eq!(collected, &[9,]);
+    assert_eq!(collected, &[Some(9),]);
     assert_eq!(res, 27);
 }
 
@@ -64,7 +66,7 @@ fn squared_iter_try_resume() {
         res = x;
     });
 
-    assert_eq!(iter.next(), Some(9));
+    assert_eq!(iter.next(), Some(Some(9)));
     assert_eq!(iter.next(), None);
 
     assert_eq!(iter.next(), None);
