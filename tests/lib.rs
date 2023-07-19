@@ -26,8 +26,8 @@ impl Fiber for Cubed {
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        self.1
+    fn get(&mut self) -> Option<Self::Yield> {
+        Some(self.1)
     }
 }
 
@@ -36,7 +36,7 @@ fn squared_01() {
     let fbr = Cubed::new(3);
     let state = fbr.run();
     let mut yld = state.unwrap();
-    assert_eq!(yld.get(), 9);
+    assert_eq!(yld.get(), Some(9));
 
     let fbr = yld;
     let state = fbr.run();

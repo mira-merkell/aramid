@@ -29,7 +29,7 @@ where
     fn run(self) -> State<Self>;
 
     /// Retrieve the yielded value.
-    fn get(&mut self) -> Self::Yield;
+    fn get(&mut self) -> Option<Self::Yield>;
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
@@ -178,7 +178,7 @@ where
                 State::Yield(mut yld) => {
                     let res = yld.get();
                     mem::swap(&mut self.fbr, &mut Some(yld));
-                    Some(res)
+                    res
                 }
                 State::Done(_) => None,
             }
@@ -262,7 +262,9 @@ impl<T> Fiber for HeapJob<T> {
         (self.f)()
     }
 
-    fn get(&mut self) -> Self::Yield {}
+    fn get(&mut self) -> Option<Self::Yield> {
+        None
+    }
 }
 
 /// Specify the closure's continuation.

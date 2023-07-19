@@ -2,6 +2,10 @@
 
 ## 0.2
 
+### 0.2.3 (??/??/????)
+
+- API change: `Fiber::get()` returns `Option<_>` now
+
 ### 0.2.2 (18/07/2023)
 
 - Add example: [`monster.rs`](./examples/monster.rs)

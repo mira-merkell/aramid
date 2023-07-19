@@ -21,7 +21,7 @@ fn main() {
 
     // Take 3 steps ---
     let motion = (0..3).fold(walk, |mut w, i| {
-        println!("Position: {}. Take a step ({i})", w.get());
+        println!("Position: {}. Take a step ({i})", w.get().unwrap());
         w.run().unwrap()
     });
     println!("--- Take a break");
@@ -35,7 +35,7 @@ fn main() {
 
     // Take 2 more steps ---
     let more = (0..2).fold(motion, |mut m, _| {
-        println!("Position: {}.", m.get());
+        println!("Position: {}.", m.get().unwrap());
         m.run().unwrap()
     });
 
@@ -54,7 +54,7 @@ fn main() {
     let mut count = 0;
     let _ = state
         .complete(|fbr| {
-            println!("Position: {}. Take a step ({count})", fbr.get());
+            println!("Position: {}. Take a step ({count})", fbr.get().unwrap());
             count += 1;
         })
         .complete(|_| println!("waiting..."))
@@ -112,8 +112,8 @@ impl<'a> Fiber for Wait<'a> {
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        self.elapsed
+    fn get(&mut self) -> Option<Self::Yield> {
+        Some(self.elapsed)
     }
 }
 
@@ -150,7 +150,7 @@ impl<'a> Fiber for Walk<'a> {
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        self.monster.position
+    fn get(&mut self) -> Option<Self::Yield> {
+        Some(self.monster.position)
     }
 }
