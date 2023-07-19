@@ -1,3 +1,5 @@
+//! Iterator <--> Fiber interface
+
 use std::mem;
 
 use crate::{
@@ -7,25 +9,37 @@ use crate::{
 
 /// Iterator over values yielded by a fiber.
 ///
-/// The fiber's final output is ignored.
-pub struct FbrIter<F>
+/// The fiber's final output is given to as argument
+/// to the supplied closure.
+pub struct Iter<F, OP>
 where
     F: Fiber,
+    OP: FnMut(F::Output),
 {
     fbr: Option<F>,
+    f:   OP,
 }
 
-impl<F: Fiber> FbrIter<F> {
-    pub fn new(fbr: F) -> Self {
+impl<F, OP> Iter<F, OP>
+where
+    F: Fiber,
+    OP: FnMut(F::Output),
+{
+    pub fn new(
+        fbr: F,
+        f: OP,
+    ) -> Self {
         Self {
-            fbr: Some(fbr)
+            fbr: Some(fbr),
+            f,
         }
     }
 }
 
-impl<F> Iterator for FbrIter<F>
+impl<F, OP> Iterator for Iter<F, OP>
 where
     F: Fiber,
+    OP: FnMut(F::Output),
 {
     type Item = F::Yield;
 
@@ -37,7 +51,10 @@ where
                     mem::swap(&mut self.fbr, &mut Some(yld));
                     Some(res)
                 }
-                State::Done(_) => None,
+                State::Done(res) => {
+                    (self.f)(res);
+                    None
+                }
             }
         } else {
             None
@@ -45,7 +62,7 @@ where
     }
 }
 
-pub(crate) struct FbrComplete<F, OP>
+pub(crate) struct IterComplete<F, OP>
 where
     F: Fiber,
     OP: FnMut(&mut F),
@@ -54,7 +71,7 @@ where
     f:   OP,
 }
 
-impl<F, OP> FbrComplete<F, OP>
+impl<F, OP> IterComplete<F, OP>
 where
     F: Fiber,
     OP: FnMut(&mut F),
@@ -70,7 +87,7 @@ where
     }
 }
 
-impl<F, OP> Iterator for FbrComplete<F, OP>
+impl<F, OP> Iterator for IterComplete<F, OP>
 where
     F: Fiber,
     OP: FnMut(&mut F),
@@ -93,7 +110,7 @@ where
     }
 }
 
-pub struct IterJob<I, K>
+pub struct FiberIter<I, K>
 where
     I: Iterator,
 {
@@ -102,7 +119,7 @@ where
     output: K,
 }
 
-impl<I, K> IterJob<I, K>
+impl<I, K> FiberIter<I, K>
 where
     I: Iterator,
 {
@@ -118,7 +135,7 @@ where
     }
 }
 
-impl<I, K> Fiber for IterJob<I, K>
+impl<I, K> Fiber for FiberIter<I, K>
 where
     I: Iterator,
 {
@@ -138,7 +155,7 @@ where
     }
 }
 
-pub struct IterJobLazy<I, K, OP>
+pub struct FiberIterLazy<I, K, OP>
 where
     I: Iterator,
     OP: FnOnce() -> K,
@@ -148,7 +165,7 @@ where
     f:    OP,
 }
 
-impl<I, K, OP> IterJobLazy<I, K, OP>
+impl<I, K, OP> FiberIterLazy<I, K, OP>
 where
     I: Iterator,
     OP: FnOnce() -> K,
@@ -165,7 +182,7 @@ where
     }
 }
 
-impl<I, K, OP> Fiber for IterJobLazy<I, K, OP>
+impl<I, K, OP> Fiber for FiberIterLazy<I, K, OP>
 where
     I: Iterator,
     OP: FnOnce() -> K,
@@ -191,12 +208,12 @@ pub trait FiberIterator: Iterator + Sized {
     /// Consume iterator and create a fiber that will yield values
     /// produced by the iterator.
     ///
-    /// The fiber's final output is given as argument
+    /// The fiber's final output is given as argument.
     fn into_fiber<K>(
         self,
         output: K,
-    ) -> IterJob<Self, K> {
-        IterJob::new(self, output)
+    ) -> FiberIter<Self, K> {
+        FiberIter::new(self, output)
     }
 
     /// Consume iterator and create a fiber that will yield values
@@ -206,11 +223,11 @@ pub trait FiberIterator: Iterator + Sized {
     fn into_fiber_lazy<K, OP>(
         self,
         f: OP,
-    ) -> IterJobLazy<Self, K, OP>
+    ) -> FiberIterLazy<Self, K, OP>
     where
         OP: FnOnce() -> K,
     {
-        IterJobLazy::new(self, f)
+        FiberIterLazy::new(self, f)
     }
 }
 
@@ -218,7 +235,7 @@ impl<T> FiberIterator for T where T: Iterator + Sized {}
 
 #[test]
 fn iterator_ext_trait() {
-    let iter = (0..3);
+    let iter = 0..3;
     let fbr = iter.into_fiber(11.1);
 
     let mut fbr = fbr.run().unwrap();
@@ -234,7 +251,7 @@ fn iterator_ext_trait() {
 
 #[test]
 fn iterator_ext_trait_lazy() {
-    let iter = (0..3);
+    let iter = 0..3;
     let fbr = iter.into_fiber_lazy(|| 77.7);
 
     let mut fbr = fbr.run().unwrap();

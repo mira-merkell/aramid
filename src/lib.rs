@@ -16,11 +16,12 @@
 //! live on the heap](crate::HeapJob).
 
 mod iterators;
-use iterators::FbrComplete;
+use iterators::IterComplete;
 pub use iterators::{
-    FbrIter,
+    FiberIter,
+    FiberIterLazy,
     FiberIterator,
-    IterJob,
+    Iter,
 };
 
 /// Lightweight coroutines for cooperative multitasking.
@@ -39,9 +40,16 @@ where
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
-    /// The final return value is ignored.
-    fn into_iter(self) -> FbrIter<Self> {
-        FbrIter::new(self)
+    /// The fiber's final output is given to as argument
+    /// to the supplied closure.
+    fn into_iter<OP>(
+        self,
+        f: OP,
+    ) -> Iter<Self, OP>
+    where
+        OP: FnMut(Self::Output),
+    {
+        Iter::new(self, f)
     }
 
     /// Run the fiber to completion.
@@ -54,7 +62,7 @@ where
     where
         OP: FnMut(&mut Self),
     {
-        FbrComplete::new(self, f).last().unwrap().unwrap()
+        IterComplete::new(self, f).last().unwrap().unwrap()
     }
 }
 
