@@ -23,7 +23,7 @@ Synthetic fibers!
 Iterators can be [fibers too]()! The difference is mainly in the fact that
 Fibers have _two_ return types: `Yield` and `Output`. A nice trick is to make a
 fiber yield some values, like an iterator, and then create another fiber as a
-final output. Weaving fibers like this can turn a collection of them into a
+final output. Weaving fibers like this can turn a bunch of them into a
 powerful finite state machine.
 
 [wikipedia-fibers]: https://en.wikipedia.org/wiki/Fiber_(computer_science)
