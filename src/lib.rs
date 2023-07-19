@@ -121,7 +121,7 @@ where
     /// let coll = iter.collect::<Vec<_>>();
     ///
     /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
-    /// assert_eq!(result, output);
+    /// assert_eq!(result, 55.5);
     /// ```
     fn into_iter<OP>(
         self,
@@ -148,7 +148,7 @@ where
     /// let result = fiber.complete(|x| coll.push(x.get()));
     ///
     /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
-    /// assert_eq!(result, output);
+    /// assert_eq!(result, 55.5);
     /// ```
     fn complete<OP>(
         self,
@@ -192,7 +192,7 @@ where
     /// # use aramid::{Fiber, State, FiberIterator};
     /// let output = ();
     /// let fiber = (1..1).into_fiber(output);
-    /// 
+    ///
     /// let state = fiber.run();
     /// assert!(state.is_done());
     ///
@@ -206,9 +206,21 @@ where
         }
     }
 
+    /// Unwrap the fiber wrapped in `Yield`.
+    ///
     /// # Panics
     ///
-    /// Panics, if `State::Done`.
+    /// This function panics, if the state is `Done`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let fiber = (0..1).into_fiber(output);
+    ///
+    /// let fiber = fiber.run().unwrap();
+    /// ```
     pub fn unwrap(self) -> F {
         match self {
             State::Yield(fbr) => fbr,
@@ -216,9 +228,24 @@ where
         }
     }
 
+    /// Unwrap the value wrapped in `Done`.
+    ///
     /// # Panics
     ///
-    /// Panics, if `State::Yield`.
+    /// This function panics, if the state is `Yield`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..1).into_fiber(output);
+    ///
+    /// let fiber = fiber.run().unwrap();
+    /// let result = fiber.run().unwrap_done();
+    ///
+    /// assert_eq!(result, 55.5);
+    /// ```
     pub fn unwrap_done(self) -> <F as Fiber>::Output {
         match self {
             State::Yield(_) => panic!("state is Done"),
@@ -226,7 +253,21 @@ where
         }
     }
 
-    /// Return true if state is `Yield`, otherwise return false.
+    /// Return true, if the state is `Yield`, otherwise return false.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let fiber = (0..1).into_fiber(output);
+    ///
+    /// let state = fiber.run();
+    /// assert!(state.is_yield());
+    ///
+    /// let new_state = state.advance();
+    /// assert!(new_state.is_done());
+    /// ```
     pub fn is_yield(&self) -> bool {
         match self {
             State::Yield(_) => true,
@@ -234,7 +275,21 @@ where
         }
     }
 
-    /// Return true is state is `Done`, otherwise return false.
+    /// Return true, if the state is `Done`, otherwise return false.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = ();
+    /// let fiber = (0..1).into_fiber(output);
+    ///
+    /// let state = fiber.run();
+    /// assert!(state.is_yield());
+    ///
+    /// let new_state = state.advance();
+    /// assert!(new_state.is_done());
+    /// ```
     pub fn is_done(&self) -> bool {
         match self {
             State::Yield(_) => false,
@@ -324,6 +379,21 @@ where
     ///
     /// If the value is `Done`, return it immediately, otherwise
     /// call `OP` on each of the yielded fibers.  Return final output.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..4).into_fiber(output);
+    /// let state = fiber.run();
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = state.complete(|fbr| coll.push(fbr.get()));
+    ///
+    /// assert_eq!(coll, &[Some(1), Some(2), Some(3)]);
+    /// assert_eq!(result, 55.5);
+    /// ```
     pub fn complete<OP>(
         self,
         f: OP,
