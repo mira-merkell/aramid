@@ -87,6 +87,17 @@ impl<F> State<F>
 where
     F: Fiber,
 {
+    /// Run fiber if the state is `Yield`.
+    ///
+    /// Returns the new yielded fiber wrapped in Some, or
+    /// None, if the state was already `Done`.
+    pub fn advance(self) -> Option<Self> {
+        match self {
+            Self::Done(_) => None,
+            Self::Yield(fbr) => Some(fbr.run()),
+        }
+    }
+
     /// # Panics
     ///
     /// Panics, if `State::Done`.
@@ -125,28 +136,74 @@ where
 
     /// Return the value of `Done`, or apply operator `OP` on the value of
     /// `Yield`.
+    ///
+    /// Returns  `None` if the value was `Yield`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = 11.5;
+    ///
+    /// // This fiber will yield: 0, and then output: 11.5.
+    /// let fiber = (0..1).into_fiber(output);
+    /// let mut state = fiber.run();
+    ///
+    /// let mut peek = None;
+    /// let check = state.done_or(|fbr| peek = Some(fbr.get()));
+    /// assert_eq!(check, None);
+    /// assert_eq!(peek, Some(0));
+    ///
+    /// let fiber = state.unwrap();
+    /// let mut state = fiber.run();
+    ///
+    /// assert_eq!(state, State::Done(output));
+    /// assert_eq!(*state.done_or(|_| ()).unwrap(), output);
+    /// ```
     pub fn done_or<OP>(
-        self,
+        &mut self,
         f: OP,
-    ) -> <F as Fiber>::Output
+    ) -> Option<&mut F::Output>
     where
-        OP: FnOnce(F) -> F::Output,
+        OP: FnOnce(&mut F),
     {
         match self {
-            Self::Done(out) => out,
-            Self::Yield(fbr) => f(fbr),
+            Self::Done(out) => Some(out),
+            Self::Yield(fbr) => {
+                f(fbr);
+                None
+            }
         }
     }
 
     /// Return the result of `OP` applied on the value of `Yield`.
     ///
-    /// Return `None` is the value is `Done`.
+    /// Return `None` if the value is `Done`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, State, FiberIterator};
+    /// let output = 11.5;
+    ///
+    /// // This fiber will yield: 0, and then output: 11.5.
+    /// let fiber = (0..1).into_fiber(output);
+    /// let mut state = fiber.run();
+    ///
+    /// assert!(state.yield_and(|fbr| fbr.get() == 0).unwrap());
+    ///
+    /// let fiber = state.unwrap();
+    /// let mut state = fiber.run();
+    ///
+    /// assert_eq!(state, State::Done(output));
+    /// assert_eq!(state.yield_and(|fbr| fbr.get() == 0), None);
+    /// ```
     pub fn yield_and<OP, T>(
-        self,
+        &mut self,
         f: OP,
     ) -> Option<T>
     where
-        OP: FnOnce(F) -> T,
+        OP: FnOnce(&mut F) -> T,
     {
         if let Self::Yield(fbr) = self {
             Some(f(fbr))
@@ -155,14 +212,20 @@ where
         }
     }
 
-    /// Run fiber if the state is `Yield`.
+    /// Run the fiber to completion.
     ///
-    /// Returns the new yielded fiber wrapped in Some, or
-    /// None, if the state was already `Done`.
-    pub fn advance(self) -> Option<Self> {
+    /// If the value is `Done`, return it immediately, otherwise
+    /// call `OP` on each of the yielded fibers.  Return final output.
+    pub fn complete<OP>(
+        self,
+        f: OP,
+    ) -> F::Output
+    where
+        OP: FnMut(&mut F),
+    {
         match self {
-            Self::Done(_) => None,
-            Self::Yield(fbr) => Some(fbr.run()),
+            Self::Done(res) => res,
+            Self::Yield(fbr) => fbr.complete(f),
         }
     }
 }

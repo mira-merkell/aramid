@@ -110,6 +110,7 @@ where
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct FiberIter<I, K>
 where
     I: Iterator,
@@ -155,6 +156,7 @@ where
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct FiberIterLazy<I, K, OP>
 where
     I: Iterator,
