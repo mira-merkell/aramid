@@ -17,7 +17,11 @@
 
 mod iterators;
 use iterators::FbrComplete;
-pub use iterators::FbrIter;
+pub use iterators::{
+    FbrIter,
+    FiberIterator,
+    IterJob,
+};
 
 /// Lightweight coroutines for cooperative multitasking.
 pub trait Fiber
