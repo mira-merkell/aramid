@@ -18,6 +18,14 @@ Synthetic fibers!
 - Check out our cool example of a fiber that models [a monster patrolling its
   dungeon][example-monster] 👾🕹️.
 
+## What's the difference between Fibers and Iterators?
+
+Iterators can be [fibers too]()! The difference is mainly in the fact that
+Fibers have _two_ return types: `Yield` and `Output`. A nice trick is to make a
+fiber yield some values, like an iterator, and then create another fiber as a
+final output. Weaving fibers like this can turn a collection of them into a
+powerful finite state machine.
+
 [wikipedia-fibers]: https://en.wikipedia.org/wiki/Fiber_(computer_science)
 [api-heapjob]: https://docs.rs/aramid/latest/aramid/struct.HeapJob.html
 [example-monster]: ./examples/monster.rs
