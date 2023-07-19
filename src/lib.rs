@@ -29,6 +29,12 @@ where
     fn run(self) -> State<Self>;
 
     /// Retrieve the yielded value.
+    ///
+    /// Note that the type `Self::Yield` doesn't need to be
+    /// Clone nor Copy.  The fiber would rather move the value out
+    /// from its own internals.  Hence, the yielded value is wrapped
+    /// in Option<_>.  If, e.g. the value cannot be copied the second
+    /// time, the fiber is free to return None.
     fn get(&mut self) -> Option<Self::Yield>;
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
@@ -54,6 +60,7 @@ where
 
 /// State of the fiber
 #[derive(Debug, PartialEq)]
+#[must_use]
 pub enum State<F>
 where
     F: Fiber,
