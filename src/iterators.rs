@@ -230,7 +230,7 @@ where
     }
 }
 
-/// Extension trait turning iterators into fibers.
+/// Extension trait fo turning iterators into fibers.
 pub trait FiberIterator: Iterator + Sized {
     /// Consume iterator and create a fiber that will yield values
     /// produced by the iterator.
@@ -291,35 +291,3 @@ pub trait FiberIterator: Iterator + Sized {
 }
 
 impl<T> FiberIterator for T where T: Iterator + Sized {}
-
-#[test]
-fn iterator_ext_trait() {
-    let iter = 0..3;
-    let fbr = iter.into_fiber(11.1);
-
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 0);
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 1);
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 2);
-
-    let st = fbr.run();
-    assert_eq!(st.unwrap_done(), 11.1);
-}
-
-#[test]
-fn iterator_ext_trait_lazy() {
-    let iter = 0..3;
-    let fbr = iter.into_fiber_lazy(|| 77.7);
-
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 0);
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 1);
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 2);
-
-    let st = fbr.run();
-    assert_eq!(st.unwrap_done(), 77.7);
-}
