@@ -47,6 +47,21 @@ where
     ///
     /// The fiber's final output is given to the supplied closure
     /// as an argument.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut result = 0.;
+    /// let iter = fiber.into_iter(|x| result = x);
+    /// let coll = iter.collect::<Vec<_>>();
+    ///
+    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(result, output);
+    /// ```
     fn into_iter<OP>(
         self,
         f: OP,
@@ -59,7 +74,21 @@ where
 
     /// Run the fiber to completion.
     ///
-    /// Call `OP` on each of the yielded fibers.  Return final output.
+    /// Call `OP` on each of the yielded fibers.  Return the final output.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = fiber.complete(|x| coll.push(x.get()));
+    ///
+    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(result, output);
+    /// ```
     fn complete<OP>(
         self,
         f: OP,
@@ -67,7 +96,10 @@ where
     where
         OP: FnMut(&mut Self),
     {
-        IterComplete::new(self, f).last().unwrap().unwrap()
+        IterComplete::new(self, f)
+            .last()
+            .expect("iterator should produce at least one value")
+            .expect("iterator should wrap values in Some")
     }
 }
 
