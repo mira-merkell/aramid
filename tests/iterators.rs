@@ -23,8 +23,8 @@ impl Fiber for MockFiber {
         }
     }
 
-    fn get(&mut self) -> Self::Yield {
-        self.count
+    fn get(&mut self) -> Option<Self::Yield> {
+        Some(self.count)
     }
 }
 
@@ -68,11 +68,11 @@ fn fiber_iterator_ext() {
     let fbr = iter.into_fiber(11.1);
 
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 0);
+    assert_eq!(fbr.get(), Some(0));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 1);
+    assert_eq!(fbr.get(), Some(1));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 2);
+    assert_eq!(fbr.get(), Some(2));
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 11.1);
@@ -93,11 +93,11 @@ fn fiber_iterator_ext_lazy() {
     let fbr = iter.into_fiber_lazy(|| 77.7);
 
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 0);
+    assert_eq!(fbr.get(), Some(0));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 1);
+    assert_eq!(fbr.get(), Some(1));
     let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), 2);
+    assert_eq!(fbr.get(), Some(2));
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 77.7);

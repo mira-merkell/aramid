@@ -142,7 +142,7 @@ where
     /// let mut coll = Vec::new();
     /// let result = fiber.complete(|x| coll.push(x.get()));
     ///
-    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, output);
     /// ```
     fn complete<OP>(

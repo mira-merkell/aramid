@@ -271,7 +271,7 @@ pub trait FiberIterator: Iterator + Sized {
     /// let mut coll = Vec::new();
     /// let result = fiber.complete(|fbr| coll.push(fbr.get()));
     ///
-    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, 55.5);
     /// ```
     fn into_fiber<K>(
@@ -298,7 +298,7 @@ pub trait FiberIterator: Iterator + Sized {
     /// let mut coll = Vec::new();
     /// let result = fiber.complete(|fbr| coll.push(fbr.get()));
     ///
-    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, false);
     /// ```
     fn into_fiber_lazy<K, OP>(
