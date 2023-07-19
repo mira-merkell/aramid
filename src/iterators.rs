@@ -67,7 +67,7 @@ where
     F: Fiber,
     OP: FnMut(F::Output),
 {
-    type Item = F::Yield;
+    type Item = Option<F::Yield>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(fbr) = mem::take(&mut self.fbr) {
@@ -75,7 +75,7 @@ where
                 State::Yield(mut yld) => {
                     let res = yld.get();
                     mem::swap(&mut self.fbr, &mut Some(yld));
-                    res
+                    Some(res)
                 }
                 State::Done(res) => {
                     (self.f)(res);
@@ -148,13 +148,13 @@ where
 /// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 /// [fiber-iterator-trait]: crate::FiberIterator
 /// [into-fiber]: crate::FiberIterator::into_fiber()
-pub struct FiberIter<I, K>
+pub struct FiberIter<I, T>
 where
     I: Iterator,
 {
     iter:   I,
     val:    Option<I::Item>,
-    output: K,
+    output: T,
 }
 
 impl<I, K> FiberIter<I, K>
@@ -173,11 +173,11 @@ where
     }
 }
 
-impl<I, K> Fiber for FiberIter<I, K>
+impl<I, T> Fiber for FiberIter<I, T>
 where
     I: Iterator,
 {
-    type Output = K;
+    type Output = T;
     type Yield = I::Item;
 
     fn run(mut self) -> State<Self> {
@@ -204,20 +204,20 @@ where
 /// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 /// [fiber-iterator-trait]: crate::FiberIterator
 /// [into-fiber-lazy]: crate::FiberIterator::into_fiber_lazy()
-pub struct FiberIterLazy<I, K, OP>
+pub struct FiberIterLazy<I, T, OP>
 where
     I: Iterator,
-    OP: FnOnce() -> K,
+    OP: FnOnce() -> T,
 {
     iter: I,
     val:  Option<I::Item>,
     f:    OP,
 }
 
-impl<I, K, OP> FiberIterLazy<I, K, OP>
+impl<I, T, OP> FiberIterLazy<I, T, OP>
 where
     I: Iterator,
-    OP: FnOnce() -> K,
+    OP: FnOnce() -> T,
 {
     pub fn new(
         iter: I,
@@ -231,12 +231,12 @@ where
     }
 }
 
-impl<I, K, OP> Fiber for FiberIterLazy<I, K, OP>
+impl<I, T, OP> Fiber for FiberIterLazy<I, T, OP>
 where
     I: Iterator,
-    OP: FnOnce() -> K,
+    OP: FnOnce() -> T,
 {
-    type Output = K;
+    type Output = T;
     type Yield = I::Item;
 
     fn run(mut self) -> State<Self> {
@@ -274,10 +274,10 @@ pub trait FiberIterator: Iterator + Sized {
     /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, 55.5);
     /// ```
-    fn into_fiber<K>(
+    fn into_fiber<T>(
         self,
-        output: K,
-    ) -> FiberIter<Self, K> {
+        output: T,
+    ) -> FiberIter<Self, T> {
         FiberIter::new(self, output)
     }
 
@@ -301,12 +301,12 @@ pub trait FiberIterator: Iterator + Sized {
     /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, false);
     /// ```
-    fn into_fiber_lazy<K, OP>(
+    fn into_fiber_lazy<T, OP>(
         self,
         f: OP,
-    ) -> FiberIterLazy<Self, K, OP>
+    ) -> FiberIterLazy<Self, T, OP>
     where
-        OP: FnOnce() -> K,
+        OP: FnOnce() -> T,
     {
         FiberIterLazy::new(self, f)
     }

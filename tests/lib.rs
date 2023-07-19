@@ -55,7 +55,7 @@ fn squared_iter() {
             res = x;
         })
         .collect::<Vec<_>>();
-    assert_eq!(collected, &[9,]);
+    assert_eq!(collected, &[Some(9),]);
     assert_eq!(res, 27);
 }
 
@@ -66,7 +66,7 @@ fn squared_iter_try_resume() {
         res = x;
     });
 
-    assert_eq!(iter.next(), Some(9));
+    assert_eq!(iter.next(), Some(Some(9)));
     assert_eq!(iter.next(), None);
 
     assert_eq!(iter.next(), None);

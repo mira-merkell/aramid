@@ -47,7 +47,9 @@ pub trait Fiber
 where
     Self: Sized,
 {
+    /// The type of the yielded values.
     type Yield;
+    /// The type of the final output produced by the fiber.
     type Output;
 
     /// Run the fiber until it yields.
@@ -101,6 +103,9 @@ where
 
     /// Consume the fiber and turn it into an iterator over its yielded values.
     ///
+    /// The values are obtained by calling `Fiber::get()`, hence are of the
+    /// type: `Option<Self::Yield>`.
+    ///
     /// The fiber's final output is given to the supplied closure
     /// as an argument.
     ///
@@ -115,7 +120,7 @@ where
     /// let iter = fiber.into_iter(|x| result = x);
     /// let coll = iter.collect::<Vec<_>>();
     ///
-    /// assert_eq!(coll, &[0, 1, 2]);
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, output);
     /// ```
     fn into_iter<OP>(

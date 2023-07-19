@@ -39,7 +39,7 @@ fn mock_fiber_into_iter() {
     .into_iter(|x| result = x)
     .collect::<Vec<_>>();
 
-    assert_eq!(coll, &[1, 2, 3]);
+    assert_eq!(coll, &[Some(1), Some(2), Some(3)]);
     assert!(result);
 }
 
@@ -53,9 +53,9 @@ fn mock_fiber_into_iter_fused() {
     }
     .into_iter(|x| result = x);
 
-    assert_eq!(iter.next(), Some(1));
-    assert_eq!(iter.next(), Some(2));
-    assert_eq!(iter.next(), Some(3));
+    assert_eq!(iter.next(), Some(Some(1)));
+    assert_eq!(iter.next(), Some(Some(2)));
+    assert_eq!(iter.next(), Some(Some(3)));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
