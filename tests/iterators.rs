@@ -12,50 +12,16 @@ struct MockFiber {
 
 impl Fiber for MockFiber {
     type Output = bool;
-    type Yield = u64;
+    type Yield<'a> = &'a u64;
 
-    fn run(&mut self) -> State<Self> {
+    fn run(&mut self) -> State<&'_ u64, bool> {
         if self.count < self.steps {
             self.count += 1;
-            State::Yield(self.count)
+            State::Yield(&self.count)
         } else {
-            State::Output(self.result)
+            State::Done(self.result)
         }
     }
-}
-
-#[test]
-fn mock_fiber_into_iter() {
-    let mut result = true;
-    let mut fiber = MockFiber {
-        count:  0,
-        steps:  3,
-        result: true,
-    };
-
-    let coll = fiber.iter_mut(|x| result = x).collect::<Vec<_>>();
-
-    assert_eq!(coll, &[1, 2, 3]);
-    assert!(result);
-}
-
-#[test]
-fn mock_fiber_into_iter_fused() {
-    let mut result = true;
-    let mut fiber = MockFiber {
-        count:  0,
-        steps:  3,
-        result: true,
-    };
-    let mut iter = fiber.iter_mut(|x| result = x);
-
-    assert_eq!(iter.next(), Some(1));
-    assert_eq!(iter.next(), Some(2));
-    assert_eq!(iter.next(), Some(3));
-    assert_eq!(iter.next(), None);
-    assert_eq!(iter.next(), None);
-
-    assert!(result);
 }
 
 #[test]

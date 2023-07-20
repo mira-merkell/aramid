@@ -38,99 +38,23 @@
 pub mod iterators;
 
 pub use iterators::FiberIterator;
-use iterators::Iter;
+// use iterators::LendingIter;
 
 /// Lightweight coroutines for cooperative multitasking.
 pub trait Fiber {
     /// The type of the yielded values.
-    type Yield;
+    type Yield<'a>
+    where
+        Self: 'a;
     /// The type of the final output produced by the fiber.
     type Output;
 
     /// Run the fiber until it yields.
-    fn run(&mut self) -> State<Self>;
-
-    // /// Retrieve the yielded value.
-    // ///
-    // /// Note that the type `Self::Yield` doesn't need to be
-    // /// [`Clone`][std-trait-clone] nor [`Copy`][std-trait-copy].  The
-    // /// fiber would rather move the value out of its own internals.  Hence,
-    // /// the yielded value is wrapped in `Option<_>`.  If, e.g. the value
-    // cannot /// be copied the second time, the fiber is free to return
-    // None. ///
-    // /// # Examples
-    // ///
-    // /// ```rust
-    // /// # use aramid::{Fiber, State, FiberIterator};
-    // /// let output = ();
-    // /// let mut fiber = (1..2).into_fiber(output).run().unwrap();
-    // ///
-    // /// assert_eq!(fiber.get(), Some(1));
-    // /// ```
-    // ///
-    // /// [std-trait-clone]: https://doc.rust-lang.org/std/clone/trait.Clone.html
-    // /// [std-trait-copy]: https://doc.rust-lang.org/std/marker/trait.Copy.html
-    // fn get(&mut self) -> Option<Self::Yield>;
-
-    // /// Retrieve the yielded value unchecked.
-    // ///
-    // /// The default implementation simply unwraps the value obtained by
-    // calling /// [`get()`](crate::Fiber::get()). The user can override
-    // this method to /// provide a more efficient implementation.
-    // ///
-    // /// # Panics
-    // ///
-    // /// By default, this method will panic, if the value returned by `get()`
-    // is /// `None`.
-    // ///
-    // /// # Examples
-    // ///
-    // /// ```rust
-    // /// # use aramid::{Fiber, State, FiberIterator};
-    // /// let output = ();
-    // /// let mut fiber = (1..2).into_fiber(output).run().unwrap();
-    // ///
-    // /// assert_eq!(fiber.get_unchecked(), 1);
-    // /// ```
-    // fn get_unchecked(&mut self) -> Self::Yield {
-    //     self.get().expect("cannot retrieve yielded value")
-    // }
-
-    /// Consume the fiber and turn it into an iterator over its yielded values.
-    ///
-    /// The values are obtained by calling `Fiber::get()`, hence are of the
-    /// type: `Option<Self::Yield>`.
-    ///
-    /// The fiber's final output is given to the supplied closure
-    /// as an argument.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use aramid::{Fiber, FiberIterator};
-    /// let output = 55.5;
-    /// let fiber = (0..3).into_fiber(output);
-    ///
-    /// let mut result = 0.;
-    /// let iter = fiber.into_iter(|x| result = x);
-    /// let coll = iter.collect::<Vec<_>>();
-    ///
-    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
-    /// assert_eq!(result, 55.5);
-    /// ```
-    fn iter_mut<OP>(
-        &mut self,
-        f: OP,
-    ) -> Iter<'_, Self, OP>
-    where
-        OP: FnMut(Self::Output),
-    {
-        Iter::new(self, f)
-    }
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Output>;
 
     /// Run the fiber to completion.
     ///
-    /// Call `OP` on each of the yielded fibers.  Return the final output.
+    /// Call `OP` on each of the yielded values.  Return the final output.
     ///
     /// # Example
     ///
@@ -150,14 +74,14 @@ pub trait Fiber {
         mut f: OP,
     ) -> Self::Output
     where
-        OP: FnMut(Self::Yield),
+        OP: FnMut(Self::Yield<'_>),
     {
         loop {
             match self.run() {
                 State::Yield(yld) => {
                     (f)(yld);
                 }
-                State::Output(res) => break res,
+                State::Done(res) => break res,
             }
         }
     }
@@ -166,45 +90,14 @@ pub trait Fiber {
 /// State of the fiber
 #[derive(Debug, PartialEq)]
 #[must_use]
-pub enum State<F>
-where
-    F: Fiber + ?Sized,
-{
+pub enum State<Y, T> {
     /// Yielded value
-    Yield(F::Yield),
+    Yield(Y),
     /// Done processing
-    Output(F::Output),
+    Done(T),
 }
 
-impl<F> State<F>
-where
-    F: Fiber,
-{
-    // /// Run fiber if the state is `Yield`.
-    // ///
-    // /// Returns the new yielded value wrapped in Self.
-    // /// If the state is already `Done`, this is a noop.
-    // ///
-    // /// # Examples
-    // ///
-    // /// ```rust
-    // /// # use aramid::{Fiber, State, FiberIterator};
-    // /// let output = ();
-    // /// let fiber = (1..1).into_fiber(output);
-    // ///
-    // /// let state = fiber.run();
-    // /// assert!(state.is_done());
-    // ///
-    // /// let new_state = state.advance();
-    // /// assert!(new_state.is_done());
-    // /// ```
-    // pub fn advance(&mut self) -> Self {
-    //     match self {
-    //         Self::Yield(fbr) => fbr.run(),
-    //         Self::Output(_) => self,
-    //     }
-    // }
-
+impl<Y, T> State<Y, T> {
     /// Unwrap the value wrapped in `Yield`.
     ///
     /// # Panics
@@ -220,10 +113,10 @@ where
     ///
     /// let fiber = fiber.run().unwrap();
     /// ```
-    pub fn unwrap(self) -> F::Yield {
+    pub fn unwrap(self) -> Y {
         match self {
             State::Yield(yld) => yld,
-            State::Output(_) => panic!("state is Yield"),
+            State::Done(_) => panic!("state is Yield"),
         }
     }
 
@@ -245,10 +138,10 @@ where
     ///
     /// assert_eq!(result, 55.5);
     /// ```
-    pub fn unwrap_done(self) -> <F as Fiber>::Output {
+    pub fn unwrap_done(self) -> T {
         match self {
             State::Yield(_) => panic!("state is Done"),
-            State::Output(out) => out,
+            State::Done(out) => out,
         }
     }
 
@@ -270,7 +163,7 @@ where
     pub fn is_yield(&self) -> bool {
         match self {
             State::Yield(_) => true,
-            State::Output(_) => false,
+            State::Done(_) => false,
         }
     }
 
@@ -292,7 +185,7 @@ where
     pub fn is_done(&self) -> bool {
         match self {
             State::Yield(_) => false,
-            State::Output(_) => true,
+            State::Done(_) => true,
         }
     }
 
@@ -371,38 +264,6 @@ where
     //         Some(f(fbr))
     //     } else {
     //         None
-    //     }
-    // }
-
-    // /// Run the fiber to completion.
-    // ///
-    // /// If the value is `Done`, return it immediately, otherwise
-    // /// call `OP` on each of the yielded fibers.  Return final output.
-    // ///
-    // /// # Examples
-    // ///
-    // /// ```rust
-    // /// # use aramid::{Fiber, State, FiberIterator};
-    // /// let output = 55.5;
-    // /// let fiber = (0..4).into_fiber(output);
-    // /// let state = fiber.run();
-    // ///
-    // /// let mut coll = Vec::new();
-    // /// let result = state.complete(|fbr| coll.push(fbr.get()));
-    // ///
-    // /// assert_eq!(coll, &[Some(1), Some(2), Some(3)]);
-    // /// assert_eq!(result, 55.5);
-    // /// ```
-    // pub fn complete<OP>(
-    //     self,
-    //     f: OP,
-    // ) -> F::Output
-    // where
-    //     OP: FnMut(&mut F),
-    // {
-    //     match self {
-    //         Self::Output(res) => res,
-    //         Self::Yield(fbr) => fbr.complete(f),
     //     }
     // }
 }

@@ -13,14 +13,14 @@ impl Cubed {
 
 impl Fiber for Cubed {
     type Output = u64;
-    type Yield = u64;
+    type Yield<'a> = &'a u64;
 
-    fn run(&mut self) -> State<Self> {
+    fn run(&mut self) -> State<&'_ u64, u64> {
         if self.0 == self.1 {
             self.1 *= self.1;
-            State::Yield(self.1)
+            State::Yield(&self.1)
         } else {
-            State::Output(self.0 * self.1)
+            State::Done(self.0 * self.1)
         }
     }
 }
@@ -29,39 +29,11 @@ impl Fiber for Cubed {
 fn squared_01() {
     let mut fbr = Cubed::new(3);
     let state = fbr.run();
-    assert_eq!(state.unwrap(), 9);
+    assert_eq!(state.unwrap(), &9);
 
     let state = fbr.run();
     let out = state.unwrap_done();
     assert_eq!(out, 27);
-}
-
-#[test]
-fn squared_iter() {
-    let mut fbr = Cubed::new(3);
-    let mut res = 0;
-    let collected = fbr
-        .iter_mut(|x| {
-            res = x;
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(collected, &[9,]);
-    assert_eq!(res, 27);
-}
-
-#[test]
-fn squared_iter_try_resume() {
-    let mut res = 0;
-    let mut fiber = Cubed::new(3);
-    let mut iter = fiber.iter_mut(|x| {
-        res = x;
-    });
-
-    assert_eq!(iter.next(), Some(9));
-    assert_eq!(iter.next(), None);
-
-    assert_eq!(iter.next(), None);
-    assert_eq!(res, 27);
 }
 
 #[test]

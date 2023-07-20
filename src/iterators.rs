@@ -29,58 +29,6 @@ use crate::{
     State,
 };
 
-/// Iterator over values yielded by a fiber.
-///
-/// The fiber's final output is given to the supplied closure as an argument.
-///
-/// This iterator is usually created by calling
-/// [`Fiber::into_inter()`][fiber-into_iter].  See that method for more details.
-///
-/// [fiber-into_iter]: crate::Fiber::into_iter()
-#[derive(Debug, PartialEq)]
-pub struct Iter<'a, F, OP>
-where
-    F: Fiber + ?Sized,
-    OP: FnMut(F::Output),
-{
-    f:   OP,
-    fbr: &'a mut F,
-}
-
-impl<'a, F, OP> Iter<'a, F, OP>
-where
-    F: Fiber + ?Sized,
-    OP: FnMut(F::Output),
-{
-    pub fn new(
-        fbr: &'a mut F,
-        f: OP,
-    ) -> Self {
-        Self {
-            fbr,
-            f,
-        }
-    }
-}
-
-impl<'a, F, OP> Iterator for Iter<'a, F, OP>
-where
-    F: Fiber + ?Sized,
-    OP: FnMut(F::Output),
-{
-    type Item = F::Yield;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.fbr.run() {
-            State::Yield(yld) => Some(yld),
-            State::Output(res) => {
-                (self.f)(res);
-                None
-            }
-        }
-    }
-}
-
 /// Implementation of the [`Fiber`][fiber-trait] trait for
 /// [`Iterators`][std-iterator].  
 ///
@@ -121,12 +69,12 @@ where
     I: Iterator,
 {
     type Output = T;
-    type Yield = I::Item;
+    type Yield<'a> =  I::Item where Self: 'a;
 
-    fn run(&mut self) -> State<Self> {
+    fn run(&mut self) -> State<I::Item, T> {
         match self.iter.next() {
             Some(val) => State::Yield(val),
-            None => State::Output(mem::take(&mut self.output).unwrap()),
+            None => State::Done(mem::take(&mut self.output).unwrap()),
         }
     }
 }
@@ -174,12 +122,12 @@ where
     OP: Fn() -> T,
 {
     type Output = T;
-    type Yield = I::Item;
+    type Yield<'a> = I::Item where Self: 'a;
 
-    fn run(&mut self) -> State<Self> {
+    fn run(&mut self) -> State<I::Item, T> {
         match self.iter.next() {
             Some(val) => State::Yield(val),
-            None => State::Output((self.f)()),
+            None => State::Done((self.f)()),
         }
     }
 }
