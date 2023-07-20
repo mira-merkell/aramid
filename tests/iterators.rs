@@ -14,17 +14,13 @@ impl Fiber for MockFiber {
     type Output = bool;
     type Yield = u64;
 
-    fn run(mut self) -> aramid::State<Self> {
+    fn run(&mut self) -> State<Self> {
         if self.count < self.steps {
             self.count += 1;
-            State::Yield(self)
+            State::Yield(self.count)
         } else {
-            State::Done(self.result)
+            State::Output(self.result)
         }
-    }
-
-    fn get(&mut self) -> Option<Self::Yield> {
-        Some(self.count)
     }
 }
 
@@ -39,7 +35,7 @@ fn mock_fiber_into_iter() {
     .into_iter(|x| result = x)
     .collect::<Vec<_>>();
 
-    assert_eq!(coll, &[Some(1), Some(2), Some(3)]);
+    assert_eq!(coll, &[1, 2, 3]);
     assert!(result);
 }
 
@@ -53,9 +49,9 @@ fn mock_fiber_into_iter_fused() {
     }
     .into_iter(|x| result = x);
 
-    assert_eq!(iter.next(), Some(Some(1)));
-    assert_eq!(iter.next(), Some(Some(2)));
-    assert_eq!(iter.next(), Some(Some(3)));
+    assert_eq!(iter.next(), Some(1));
+    assert_eq!(iter.next(), Some(2));
+    assert_eq!(iter.next(), Some(3));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
@@ -65,14 +61,11 @@ fn mock_fiber_into_iter_fused() {
 #[test]
 fn fiber_iterator_ext() {
     let iter = 0..3;
-    let fbr = iter.into_fiber(11.1);
+    let mut fbr = iter.into_fiber(11.1);
 
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), Some(0));
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), Some(1));
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), Some(2));
+    assert_eq!(fbr.run().unwrap(), 0);
+    assert_eq!(fbr.run().unwrap(), 1);
+    assert_eq!(fbr.run().unwrap(), 2);
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 11.1);
@@ -81,7 +74,7 @@ fn fiber_iterator_ext() {
 #[test]
 fn fiber_iterator_ext_empty() {
     let iter = 0..0;
-    let fbr = iter.into_fiber(11.1);
+    let mut fbr = iter.into_fiber(11.1);
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 11.1);
@@ -90,14 +83,11 @@ fn fiber_iterator_ext_empty() {
 #[test]
 fn fiber_iterator_ext_lazy() {
     let iter = 0..3;
-    let fbr = iter.into_fiber_lazy(|| 77.7);
+    let mut fbr = iter.into_fiber_lazy(|| 77.7);
 
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), Some(0));
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), Some(1));
-    let mut fbr = fbr.run().unwrap();
-    assert_eq!(fbr.get(), Some(2));
+    assert_eq!(fbr.run().unwrap(), 0);
+    assert_eq!(fbr.run().unwrap(), 1);
+    assert_eq!(fbr.run().unwrap(), 2);
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 77.7);
@@ -106,7 +96,7 @@ fn fiber_iterator_ext_lazy() {
 #[test]
 fn fiber_iterator_ext_lazy_empty() {
     let iter = 0..0;
-    let fbr = iter.into_fiber_lazy(|| 11.1);
+    let mut fbr = iter.into_fiber_lazy(|| 11.1);
 
     let st = fbr.run();
     assert_eq!(st.unwrap_done(), 11.1);

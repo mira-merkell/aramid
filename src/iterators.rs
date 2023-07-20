@@ -43,7 +43,7 @@ where
     F: Fiber,
     OP: FnMut(F::Output),
 {
-    fbr: Option<F>,
+    fbr: F,
     f:   OP,
 }
 
@@ -57,7 +57,7 @@ where
         f: OP,
     ) -> Self {
         Self {
-            fbr: Some(fbr),
+            fbr,
             f,
         }
     }
@@ -68,23 +68,15 @@ where
     F: Fiber,
     OP: FnMut(F::Output),
 {
-    type Item = Option<F::Yield>;
+    type Item = F::Yield;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(fbr) = mem::take(&mut self.fbr) {
-            match fbr.run() {
-                State::Yield(mut yld) => {
-                    let res = yld.get();
-                    mem::swap(&mut self.fbr, &mut Some(yld));
-                    Some(res)
-                }
-                State::Done(res) => {
-                    (self.f)(res);
-                    None
-                }
+        match self.fbr.run() {
+            State::Yield(yld) => Some(yld),
+            State::Output(res) => {
+                (self.f)(res);
+                None
             }
-        } else {
-            None
         }
     }
 }
@@ -93,23 +85,23 @@ where
 pub(crate) struct IterComplete<F, OP>
 where
     F: Fiber,
-    OP: FnMut(&mut F),
+    OP: FnMut(F::Yield),
 {
-    fbr: Option<F>,
+    fbr: F,
     f:   OP,
 }
 
 impl<F, OP> IterComplete<F, OP>
 where
     F: Fiber,
-    OP: FnMut(&mut F),
+    OP: FnMut(F::Yield),
 {
     pub(crate) fn new(
         fbr: F,
         f: OP,
     ) -> Self {
         Self {
-            fbr: Some(fbr),
+            fbr,
             f,
         }
     }
@@ -118,22 +110,17 @@ where
 impl<F, OP> Iterator for IterComplete<F, OP>
 where
     F: Fiber,
-    OP: FnMut(&mut F),
+    OP: FnMut(F::Yield),
 {
     type Item = Option<F::Output>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(fbr) = mem::take(&mut self.fbr) {
-            match fbr.run() {
-                State::Yield(mut yld) => {
-                    (self.f)(&mut yld);
-                    mem::swap(&mut self.fbr, &mut Some(yld));
-                    Some(None)
-                }
-                State::Done(res) => Some(Some(res)),
+        match self.fbr.run() {
+            State::Yield(yld) => {
+                (self.f)(yld);
+                Some(None)
             }
-        } else {
-            None
+            State::Output(res) => Some(Some(res)),
         }
     }
 }
@@ -155,22 +142,20 @@ where
     I: Iterator,
 {
     iter:   I,
-    val:    Option<I::Item>,
-    output: T,
+    output: Option<T>,
 }
 
-impl<I, K> FiberIter<I, K>
+impl<I, T> FiberIter<I, T>
 where
     I: Iterator,
 {
     pub fn new(
         iter: I,
-        output: K,
+        output: T,
     ) -> Self {
         Self {
             iter,
-            val: None,
-            output,
+            output: Some(output),
         }
     }
 }
@@ -182,16 +167,11 @@ where
     type Output = T;
     type Yield = I::Item;
 
-    fn run(mut self) -> State<Self> {
-        self.val = self.iter.next();
-        match self.val {
-            Some(_) => State::Yield(self),
-            None => State::Done(self.output),
+    fn run(&mut self) -> State<Self> {
+        match self.iter.next() {
+            Some(val) => State::Yield(val),
+            None => State::Output(mem::take(&mut self.output).unwrap()),
         }
-    }
-
-    fn get(&mut self) -> Option<<I as Iterator>::Item> {
-        mem::take(&mut self.val)
     }
 }
 
@@ -210,17 +190,16 @@ where
 pub struct FiberIterLazy<I, T, OP>
 where
     I: Iterator,
-    OP: FnOnce() -> T,
+    OP: Fn() -> T,
 {
     iter: I,
-    val:  Option<I::Item>,
     f:    OP,
 }
 
 impl<I, T, OP> FiberIterLazy<I, T, OP>
 where
     I: Iterator,
-    OP: FnOnce() -> T,
+    OP: Fn() -> T,
 {
     pub fn new(
         iter: I,
@@ -228,7 +207,6 @@ where
     ) -> Self {
         Self {
             iter,
-            val: None,
             f,
         }
     }
@@ -237,21 +215,16 @@ where
 impl<I, T, OP> Fiber for FiberIterLazy<I, T, OP>
 where
     I: Iterator,
-    OP: FnOnce() -> T,
+    OP: Fn() -> T,
 {
     type Output = T;
     type Yield = I::Item;
 
-    fn run(mut self) -> State<Self> {
-        self.val = self.iter.next();
-        match self.val {
-            Some(_) => State::Yield(self),
-            None => State::Done((self.f)()),
+    fn run(&mut self) -> State<Self> {
+        match self.iter.next() {
+            Some(val) => State::Yield(val),
+            None => State::Output((self.f)()),
         }
-    }
-
-    fn get(&mut self) -> Option<<I as Iterator>::Item> {
-        mem::take(&mut self.val)
     }
 }
 
@@ -309,7 +282,7 @@ pub trait FiberIterator: Iterator + Sized {
         f: OP,
     ) -> FiberIterLazy<Self, T, OP>
     where
-        OP: FnOnce() -> T,
+        OP: Fn() -> T,
     {
         FiberIterLazy::new(self, f)
     }
