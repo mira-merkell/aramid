@@ -1,4 +1,4 @@
-//! A monster, patrolling its dungeon, walking back and forth 👾🕹️.
+//! A legion of monsters, patrolling a dungeon, walking back and forth 👾🕹️.
 //!
 //! The idea for this example was taken from Bob Nystrom's
 //! [blog post on fibers][bob-nystrom-fibers].
@@ -11,103 +11,167 @@ use aramid::{
 };
 
 fn main() {
-    // Create a monster ---
-    // By default, it will take 5 steps to the right,
-    // then wait for 3 "frames", then 5 steps to the left, and so on...
-    let mut monster = Monster::default();
+    // Create a legion ---
+    let mut legion = Legion::new(5);
 
-    // Start walking ---
-    // let walk = Walk::new(&mut monster);
-
-    // Take 3 steps ---
-    // let motion = (0..3).fold(walk, |mut w, i| {
-    //     println!("Position: {}. Take a step ({i})", w.get().unwrap());
-    //     w.run().unwrap()
-    // });
-    println!("--- Take a break");
-
-    // Monster is busy walking ---
-    // We cannot access the monster's state directly, since it's borrowed by
-    // Walk. This line won't compile:
-    //
-    // >>> let pos = monster.position;
-    //
-
-    // Take 2 more steps ---
-    // let more = (0..2).fold(motion, |mut m, _| {
-    //     println!("Position: {}.", m.get().unwrap());
-    //     m.run().unwrap()
-    // });
-
-    // If we try to take another step,
-    // the fiber will switch its state to `Wait`:
-    // let state = more.run();
-    // assert!(state.is_done());
-
-    // Monster is waiting ---
-    // let wait = state.unwrap_done();
-    // let state = wait.complete(|_| println!("waiting..."));
-
-    // We're done waiting, get back to walking
-    // (The counter variable below is to showcase that the closure we give
-    // to complete() can change its state too.)
-    // let mut count = 0;
-    // let _ = state
-    //     .complete(|fbr| {
-    //         println!("Position: {}. Take a step ({count})",
-    // fbr.get().unwrap());         count += 1;
-    //     })
-    //     .complete(|_| println!("waiting..."))
-    //     .complete(|_| println!("walking..."));
-
-    // We've dropped the fiber here.
-    // We can now modify monster again, i.e.
-    monster.walk_right = false;
-}
-
-struct Monster {
-    wait_frames: u64,
-    walk_steps:  u64,
-    walk_right:  bool,
-    position:    i64,
-}
-
-impl Default for Monster {
-    fn default() -> Self {
-        Self {
-            wait_frames: 3,
-            walk_steps:  5,
-            walk_right:  true,
-            position:    0,
+    for i in 0..1000 {
+        let mosters = legion.run().unwrap();
+        for m in mosters {
+            println!(
+                "Round: {i}, monster id: {}, position: {}",
+                m.id, m.position
+            );
         }
     }
 }
 
-/// Wait for a specified number of frames
-struct Count {
-    frames: u64,
-    count:  u64,
+struct Legion {
+    stack: Vec<Monster>,
 }
 
-impl Count {
-    fn new(frames: u64) -> Self {
+impl Legion {
+    fn new(n: u64) -> Self {
+        assert!(n > 0);
+        let mut stack = Vec::new();
+        for i in 0..n {
+            let monster = Monster {
+                id:          i,
+                wait_frames: 2 + i / 4,
+                walk_steps:  3 + i as u32 / 3,
+                walk_right:  i % 3 == 0,
+                position:    (i * i) as i64,
+                either:      Either::Wait(Wait::new(0)),
+            };
+            stack.push(monster);
+        }
+
         Self {
-            frames,
+            stack,
+        }
+    }
+}
+
+impl Fiber for Legion {
+    type Output = ();
+    type Yield<'a> = &'a Vec<Monster>
+    where
+        Self: 'a;
+
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Output> {
+        let mut fbr = self.stack.pop().unwrap();
+        let _ = fbr.run();
+        self.stack.insert(0, fbr);
+        State::Yield(&self.stack)
+    }
+}
+
+struct Monster {
+    id:          u64,
+    wait_frames: u64,
+    walk_steps:  u32,
+    walk_right:  bool,
+    position:    i64,
+    either:      Either<Wait, Walk>,
+}
+
+impl Fiber for Monster {
+    type Output = ();
+    type Yield<'a> = &'a i64
+    where
+        Self: 'a;
+
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Output> {
+        match &mut self.either {
+            Either::Wait(wait) => {
+                if let State::Done(_) = wait.run() {
+                    self.either = Either::Walk(Walk::new(
+                        self.walk_steps,
+                        self.walk_right,
+                        self.position,
+                    ));
+                }
+            }
+            Either::Walk(walk) => {
+                if let State::Yield(pos) = walk.run() {
+                    self.position = *pos;
+                } else {
+                    self.walk_right = !self.walk_right;
+                    self.either = Either::Wait(Wait::new(self.wait_frames))
+                }
+            }
+        }
+        State::Yield(&self.position)
+    }
+}
+
+enum Either<T, K> {
+    Wait(T),
+    Walk(K),
+}
+
+struct Wait {
+    wait_frames: u64,
+    count:       u64,
+}
+
+impl Wait {
+    fn new(wait_frames: u64) -> Self {
+        Self {
+            wait_frames,
             count: 0,
         }
     }
 }
 
-impl Fiber for Count {
-    type Output = u64;
-    type Yield<'a> = &'a u64   where        Self: 'a;
+impl Fiber for Wait {
+    type Output = ();
+    type Yield<'a> = ()
+    where
+        Self: 'a;
 
     fn run(&mut self) -> State<Self::Yield<'_>, Self::Output> {
-        if self.count < self.frames {
+        if self.count < self.wait_frames {
             self.count += 1;
-            State::Yield(&self.count)
+            State::Yield(())
         } else {
-            State::Done(self.count)
+            State::Done(())
+        }
+    }
+}
+
+struct Walk {
+    walk_steps: u32,
+    walk_right: bool,
+    count:      u32,
+    pos:        i64,
+}
+
+impl Walk {
+    fn new(
+        walk_steps: u32,
+        walk_right: bool,
+        init_pos: i64,
+    ) -> Self {
+        Self {
+            walk_steps,
+            walk_right,
+            count: 0,
+            pos: init_pos,
+        }
+    }
+}
+
+impl Fiber for Walk {
+    type Output = i64;
+    type Yield<'a> = &'a i64 where Self: 'a;
+
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Output> {
+        if self.count < self.walk_steps {
+            self.count += 1;
+            self.pos += if self.walk_right { 1 } else { -1 };
+            State::Yield(&self.pos)
+        } else {
+            State::Done(self.pos)
         }
     }
 }
