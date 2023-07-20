@@ -54,9 +54,9 @@ Synthetic fibers and Rust.
   start a chat in the [Discussions][github-discussions], and we'll see if we can
   work something out. 🦀
 - If you cannot afford a computer suitable for software development, GitHub has
-  this feature now call Codespaces, where you can set up a Linux environment on
-  the cloud. Start a chat in the Discussions and we can try to set it up for
-  you. 🔌🖥️
+  this feature now called Codespaces, where you can launch a Linux environment
+  in the cloud. Start a chat in the Discussions and we can try to set it up for
+  everyone. 🔌🖥️
 
 ## What's the difference between Fibers and Iterators?
 

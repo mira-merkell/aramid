@@ -13,7 +13,7 @@
 //! to that, fibers producing different types can be easily chained into
 //! powerful state machines.
 //!
-//! Please note also that the method `Iterator::next()` take the iterator by
+//! Please note also that the method `Iterator::next()` takes the iterator by
 //! mutable reference, whereas the analogous `Fiber::run()` consumes the fiber
 //! and produces either a new one (or a modified version of itself), or the
 //! final output wrapped in [`State`][state]
@@ -143,7 +143,7 @@ where
 ///
 /// Typically, you wouldn't need to create this struct directly. Instead,
 /// you can import the trait [`FiberIterator`][fiber-iterator-trait]
-/// and call [`into_fiber()`][into-fiber] on an iterator directly.
+/// and call [`into_fiber()`][into-fiber] on any iterator.
 ///
 /// [fiber-trait]: crate::Fiber
 /// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
@@ -200,7 +200,7 @@ where
 ///
 /// Typically, you wouldn't need to create this struct directly. Instead,
 /// you can import the trait [`FiberIterator`][fiber-iterator-trait]
-/// and call [`into_fiber_lazy()`][into-fiber-lazy] on an iterator directly.
+/// and call [`into_fiber_lazy()`][into-fiber-lazy] on an any iterator.
 ///
 /// [fiber-trait]: crate::Fiber
 /// [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
