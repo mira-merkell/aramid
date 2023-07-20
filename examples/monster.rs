@@ -12,16 +12,22 @@ use aramid::{
 
 fn main() {
     // Create a legion ---
-    let mut legion = Legion::new(5);
+    const NUM_MOSTERS: u64 = 8;
+    let mut legion = Legion::new(NUM_MOSTERS);
+    let mut positions = vec![0; NUM_MOSTERS as usize];
 
     for i in 0..1000 {
-        let mosters = legion.run().unwrap();
-        for m in mosters {
-            println!(
-                "Round: {i}, monster id: {}, position: {}",
-                m.id, m.position
-            );
+        print!("Round {i:0>3}: ");
+        for _ in 0..NUM_MOSTERS {
+            let mosters = legion.run().unwrap();
+            for m in mosters {
+                positions[m.id as usize] = m.position;
+            }
         }
+        for p in positions.iter() {
+            print!("[{:0>2}] ", p);
+        }
+        println!("");
     }
 }
 
@@ -36,10 +42,10 @@ impl Legion {
         for i in 0..n {
             let monster = Monster {
                 id:          i,
-                wait_frames: 2 + i / 4,
-                walk_steps:  3 + i as u32 / 3,
+                wait_frames: 1 + i / 4,
+                walk_steps:  7 + i as u32 / 3,
                 walk_right:  i % 3 == 0,
-                position:    (i * i) as i64,
+                position:    (i*i)  as i64 - 2,
                 either:      Either::Wait(Wait::new(0)),
             };
             stack.push(monster);
