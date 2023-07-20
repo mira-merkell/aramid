@@ -27,13 +27,13 @@ impl Fiber for MockFiber {
 #[test]
 fn mock_fiber_into_iter() {
     let mut result = true;
-    let coll = MockFiber {
+    let mut fiber = MockFiber {
         count:  0,
         steps:  3,
         result: true,
-    }
-    .into_iter(|x| result = x)
-    .collect::<Vec<_>>();
+    };
+
+    let coll = fiber.iter_mut(|x| result = x).collect::<Vec<_>>();
 
     assert_eq!(coll, &[1, 2, 3]);
     assert!(result);
@@ -42,12 +42,12 @@ fn mock_fiber_into_iter() {
 #[test]
 fn mock_fiber_into_iter_fused() {
     let mut result = true;
-    let mut iter = MockFiber {
+    let mut fiber = MockFiber {
         count:  0,
         steps:  3,
         result: true,
-    }
-    .into_iter(|x| result = x);
+    };
+    let mut iter = fiber.iter_mut(|x| result = x);
 
     assert_eq!(iter.next(), Some(1));
     assert_eq!(iter.next(), Some(2));

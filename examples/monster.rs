@@ -54,8 +54,8 @@
 //     let mut count = 0;
 //     let _ = state
 //         .complete(|fbr| {
-//             println!("Position: {}. Take a step ({count})", fbr.get().unwrap());
-//             count += 1;
+//             println!("Position: {}. Take a step ({count})",
+// fbr.get().unwrap());             count += 1;
 //         })
 //         .complete(|_| println!("waiting..."))
 //         .complete(|_| println!("walking..."));

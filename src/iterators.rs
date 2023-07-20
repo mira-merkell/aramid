@@ -38,22 +38,22 @@ use crate::{
 ///
 /// [fiber-into_iter]: crate::Fiber::into_iter()
 #[derive(Debug, PartialEq)]
-pub struct Iter<F, OP>
+pub struct Iter<'a, F, OP>
 where
-    F: Fiber,
+    F: Fiber + ?Sized,
     OP: FnMut(F::Output),
 {
-    fbr: F,
     f:   OP,
+    fbr: &'a mut F,
 }
 
-impl<F, OP> Iter<F, OP>
+impl<'a, F, OP> Iter<'a, F, OP>
 where
-    F: Fiber,
+    F: Fiber + ?Sized,
     OP: FnMut(F::Output),
 {
     pub fn new(
-        fbr: F,
+        fbr: &'a mut F,
         f: OP,
     ) -> Self {
         Self {
@@ -63,9 +63,9 @@ where
     }
 }
 
-impl<F, OP> Iterator for Iter<F, OP>
+impl<'a, F, OP> Iterator for Iter<'a, F, OP>
 where
-    F: Fiber,
+    F: Fiber + ?Sized,
     OP: FnMut(F::Output),
 {
     type Item = F::Yield;
@@ -77,50 +77,6 @@ where
                 (self.f)(res);
                 None
             }
-        }
-    }
-}
-
-// Iterator used to implement `Fiber::complete()`.
-pub(crate) struct IterComplete<F, OP>
-where
-    F: Fiber,
-    OP: FnMut(F::Yield),
-{
-    fbr: F,
-    f:   OP,
-}
-
-impl<F, OP> IterComplete<F, OP>
-where
-    F: Fiber,
-    OP: FnMut(F::Yield),
-{
-    pub(crate) fn new(
-        fbr: F,
-        f: OP,
-    ) -> Self {
-        Self {
-            fbr,
-            f,
-        }
-    }
-}
-
-impl<F, OP> Iterator for IterComplete<F, OP>
-where
-    F: Fiber,
-    OP: FnMut(F::Yield),
-{
-    type Item = Option<F::Output>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.fbr.run() {
-            State::Yield(yld) => {
-                (self.f)(yld);
-                Some(None)
-            }
-            State::Output(res) => Some(Some(res)),
         }
     }
 }

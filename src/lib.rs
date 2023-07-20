@@ -36,19 +36,12 @@
 //! [module-iterators]: crate::iterators
 
 pub mod iterators;
-use std::mem;
 
 pub use iterators::FiberIterator;
-use iterators::{
-    Iter,
-    IterComplete,
-};
+use iterators::Iter;
 
 /// Lightweight coroutines for cooperative multitasking.
-pub trait Fiber
-where
-    Self: Sized,
-{
+pub trait Fiber {
     /// The type of the yielded values.
     type Yield;
     /// The type of the final output produced by the fiber.
@@ -62,9 +55,9 @@ where
     // /// Note that the type `Self::Yield` doesn't need to be
     // /// [`Clone`][std-trait-clone] nor [`Copy`][std-trait-copy].  The
     // /// fiber would rather move the value out of its own internals.  Hence,
-    // /// the yielded value is wrapped in `Option<_>`.  If, e.g. the value cannot
-    // /// be copied the second time, the fiber is free to return None.
-    // ///
+    // /// the yielded value is wrapped in `Option<_>`.  If, e.g. the value
+    // cannot /// be copied the second time, the fiber is free to return
+    // None. ///
     // /// # Examples
     // ///
     // /// ```rust
@@ -81,14 +74,14 @@ where
 
     // /// Retrieve the yielded value unchecked.
     // ///
-    // /// The default implementation simply unwraps the value obtained by calling
-    // /// [`get()`](crate::Fiber::get()). The user can override this method to
-    // /// provide a more efficient implementation.
+    // /// The default implementation simply unwraps the value obtained by
+    // calling /// [`get()`](crate::Fiber::get()). The user can override
+    // this method to /// provide a more efficient implementation.
     // ///
     // /// # Panics
     // ///
-    // /// By default, this method will panic, if the value returned by `get()` is
-    // /// `None`.
+    // /// By default, this method will panic, if the value returned by `get()`
+    // is /// `None`.
     // ///
     // /// # Examples
     // ///
@@ -125,45 +118,49 @@ where
     /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
     /// assert_eq!(result, 55.5);
     /// ```
-    fn into_iter<OP>(
-        self,
+    fn iter_mut<OP>(
+        &mut self,
         f: OP,
-    ) -> Iter<Self, OP>
+    ) -> Iter<'_, Self, OP>
     where
         OP: FnMut(Self::Output),
     {
         Iter::new(self, f)
     }
 
-    // /// Run the fiber to completion.
-    // ///
-    // /// Call `OP` on each of the yielded fibers.  Return the final output.
-    // ///
-    // /// # Example
-    // ///
-    // /// ```rust
-    // /// # use aramid::{Fiber, FiberIterator};
-    // /// let output = 55.5;
-    // /// let fiber = (0..3).into_fiber(output);
-    // ///
-    // /// let mut coll = Vec::new();
-    // /// let result = fiber.complete(|x| coll.push(x.get()));
-    // ///
-    // /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
-    // /// assert_eq!(result, 55.5);
-    // /// ```
-    // fn complete<OP>(
-    //     self,
-    //     f: OP,
-    // ) -> Self::Output
-    // where
-    //     OP: FnMut(&mut Self),
-    // {
-    //     IterComplete::new(self, f)
-    //         .last()
-    //         .expect("iterator should produce at least one value")
-    //         .expect("iterator should wrap values in Some")
-    // }
+    /// Run the fiber to completion.
+    ///
+    /// Call `OP` on each of the yielded fibers.  Return the final output.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use aramid::{Fiber, FiberIterator};
+    /// let output = 55.5;
+    /// let fiber = (0..3).into_fiber(output);
+    ///
+    /// let mut coll = Vec::new();
+    /// let result = fiber.complete(|x| coll.push(x.get()));
+    ///
+    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
+    /// assert_eq!(result, 55.5);
+    /// ```
+    fn complete<OP>(
+        &mut self,
+        mut f: OP,
+    ) -> Self::Output
+    where
+        OP: FnMut(Self::Yield),
+    {
+        loop {
+            match self.run() {
+                State::Yield(yld) => {
+                    (f)(yld);
+                }
+                State::Output(res) => break res,
+            }
+        }
+    }
 }
 
 /// State of the fiber
@@ -171,7 +168,7 @@ where
 #[must_use]
 pub enum State<F>
 where
-    F: Fiber,
+    F: Fiber + ?Sized,
 {
     /// Yielded value
     Yield(F::Yield),
