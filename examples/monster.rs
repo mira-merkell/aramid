@@ -27,7 +27,7 @@ fn main() {
         for p in positions.iter() {
             print!("[{:0>2}] ", p);
         }
-        println!("");
+        println!();
     }
 }
 
@@ -45,7 +45,7 @@ impl Legion {
                 wait_frames: 1 + i / 4,
                 walk_steps:  7 + i as u32 / 3,
                 walk_right:  i % 3 == 0,
-                position:    (i*i)  as i64 - 2,
+                position:    (i * i) as i64 - 2,
                 either:      Either::Wait(Wait::new(0)),
             };
             stack.push(monster);
