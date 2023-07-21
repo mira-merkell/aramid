@@ -26,16 +26,16 @@ mod fsm {
     }
 
     pub enum MachineState {
-        INIT,
+        Init,
         Raw(RawData),
         Proc(ProcData),
-        DONE(u8),
+        Done(u8),
     }
     use MachineState::*;
 
     impl Default for MachineState {
         fn default() -> Self {
-            Self::INIT
+            Self::Init
         }
     }
 
@@ -44,10 +44,10 @@ mod fsm {
         control: &u8,
     ) -> MachineState {
         match state {
-            INIT => Raw(recv()),
+            Init => Raw(recv()),
             Raw(data) => Proc(process(data, *control)),
-            Proc(data) => DONE(send(data)),
-            DONE(x) => DONE(x),
+            Proc(data) => Done(send(data)),
+            Done(x) => Done(x),
         }
     }
 }
@@ -59,13 +59,13 @@ use aramid::{
     State,
 };
 use fsm::MachineState;
-struct Processor {
+pub struct Processor {
     control: u8,
     state:   Option<MachineState>,
 }
 
 impl Processor {
-    fn new(control: u8) -> Self {
+    pub fn new(control: u8) -> Self {
         Self {
             control,
             state: Some(Default::default()),
@@ -85,10 +85,42 @@ impl Fiber for Processor {
         mem::swap(&mut self.state, &mut state);
 
         match &mut self.state {
-            Some(MachineState::INIT) => panic!("already processed"),
-            Some(MachineState::DONE(_)) => State::Done(()),
+            Some(MachineState::Init) => panic!("already processed"),
+            Some(MachineState::Done(_)) => State::Done(()),
             Some(_) => State::Yield(&mut self.control),
             None => panic!(),
         }
     }
 }
+
+struct ConveyorBelt {
+    control: u8,
+    proc:    Vec<Processor>,
+}
+
+impl ConveyorBelt {
+    fn add_new(&mut self) {
+        self.proc.push(Processor::new(self.control))
+    }
+}
+
+impl Fiber for ConveyorBelt {
+    type Return = ();
+    type Yield<'a> = ()
+    where
+        Self: 'a;
+
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Return> {
+        if let Some(mut proc) = self.proc.pop() {
+            if let State::Yield(yld) = proc.run() {
+                *yld = self.control;
+                self.proc.insert(0, proc);
+            }
+            State::Yield(())
+        } else {
+            State::Done(())
+        }
+    }
+}
+
+fn main() {}
