@@ -21,7 +21,6 @@ mod fsm {
         Raw(RawData),
         Proc(ProcData),
         DONE(()),
-        UNSPEC,
     }
     use MachineState::*;
 
@@ -38,9 +37,6 @@ mod fsm {
                     DONE(())
                 }
                 DONE(()) => DONE(()),
-                UNSPEC => {
-                    panic!("called transition() on unspecified state")
-                }
             }
         }
     }
@@ -55,37 +51,36 @@ use aramid::{
 use fsm::MachineState;
 struct Processor {
     control: (),
-    state:   MachineState,
+    state:   Option<MachineState>,
 }
 
 impl Processor {
     fn new(_control: ()) -> Self {
         Self {
             control: _control,
-            state:   MachineState::INIT,
+            state:   Some(MachineState::INIT),
         }
     }
 }
 
 impl Fiber for Processor {
-    type Output = ();
+    type Return = ();
     type Yield<'a> = &'a MachineState
     where
         Self: 'a;
 
-    fn run(&mut self) -> State<Self::Yield<'_>, Self::Output> {
-        let mut state = MachineState::transition(
-            mem::replace(&mut self.state, MachineState::UNSPEC),
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Return> {
+        let mut state = Some(MachineState::transition(
+            self.state.take().unwrap(),
             &self.control,
-        );
+        ));
         mem::swap(&mut self.state, &mut state);
 
-        match self.state {
-            MachineState::INIT => panic!("already processed"),
-            MachineState::Raw(_) => State::Yield(&self.state),
-            MachineState::Proc(_) => State::Yield(&self.state),
-            MachineState::DONE(_) => State::Done(()),
-            MachineState::UNSPEC => panic!("unspecified state"),
+        match &self.state {
+            Some(MachineState::INIT) => panic!("already processed"),
+            Some(MachineState::DONE(_)) => State::Done(()),
+            Some(state) => State::Yield(state),
+            None => panic!(),
         }
     }
 }

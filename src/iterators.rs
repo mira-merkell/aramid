@@ -68,7 +68,7 @@ impl<I, T> Fiber for FiberIter<I, T>
 where
     I: Iterator,
 {
-    type Output = T;
+    type Return = T;
     type Yield<'a> =  I::Item where Self: 'a;
 
     fn run(&mut self) -> State<I::Item, T> {
@@ -121,7 +121,7 @@ where
     I: Iterator,
     OP: Fn() -> T,
 {
-    type Output = T;
+    type Return = T;
     type Yield<'a> = I::Item where Self: 'a;
 
     fn run(&mut self) -> State<I::Item, T> {

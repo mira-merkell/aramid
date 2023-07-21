@@ -35,9 +35,9 @@
 //! [std-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 //! [module-iterators]: crate::iterators
 
-pub mod iterators;
+// pub mod iterators;
 
-pub use iterators::FiberIterator;
+// pub use iterators::FiberIterator;
 // use iterators::LendingIter;
 
 /// Lightweight coroutines for cooperative multitasking.
@@ -47,57 +47,58 @@ pub trait Fiber {
     where
         Self: 'a;
     /// The type of the final output produced by the fiber.
-    type Output;
+    type Return;
 
     /// Run the fiber until it yields.
-    fn run(&mut self) -> State<Self::Yield<'_>, Self::Output>;
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Return>;
 
-    /// Run the fiber to completion.
-    ///
-    /// Call `OP` on each of the yielded values.  Return the final output.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use aramid::{Fiber, FiberIterator};
-    /// let output = 55.5;
-    /// let fiber = (0..3).into_fiber(output);
-    ///
-    /// let mut coll = Vec::new();
-    /// let result = fiber.complete(|x| coll.push(x.get()));
-    ///
-    /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
-    /// assert_eq!(result, 55.5);
-    /// ```
-    fn complete<OP>(
-        &mut self,
-        mut f: OP,
-    ) -> Self::Output
-    where
-        OP: FnMut(Self::Yield<'_>),
-    {
-        loop {
-            match self.run() {
-                State::Yield(yld) => {
-                    (f)(yld);
-                }
-                State::Done(res) => break res,
-            }
-        }
-    }
+    // /// Run the fiber to completion.
+    // ///
+    // /// Call `OP` on each of the yielded values.  Return the final output.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```rust
+    // /// # use aramid::{Fiber, FiberIterator};
+    // /// let output = 55.5;
+    // /// let fiber = (0..3).into_fiber(output);
+    // ///
+    // /// let mut coll = Vec::new();
+    // /// let result = fiber.complete(|x| coll.push(x.get()));
+    // ///
+    // /// assert_eq!(coll, &[Some(0), Some(1), Some(2)]);
+    // /// assert_eq!(result, 55.5);
+    // /// ```
+    // fn complete<OP>(
+    //     &mut self,
+    //     mut f: OP,
+    //     cx: C,
+    // ) -> Self::Return
+    // where
+    //     OP: FnMut(Self::Yield<'_>),
+    // {
+    //     loop {
+    //         match self.run(cx) {
+    //             State::Yield(yld) => {
+    //                 (f)(yld);
+    //             }
+    //             State::Done(res) => break res,
+    //         }
+    //     }
+    // }
 }
 
 /// State of the fiber
 #[derive(Debug, PartialEq)]
 #[must_use]
-pub enum State<Y, T> {
+pub enum State<Y, R> {
     /// Yielded value
     Yield(Y),
     /// Done processing
-    Done(T),
+    Done(R),
 }
 
-impl<Y, T> State<Y, T> {
+impl<Y, R> State<Y, R> {
     /// Unwrap the value wrapped in `Yield`.
     ///
     /// # Panics
@@ -138,7 +139,7 @@ impl<Y, T> State<Y, T> {
     ///
     /// assert_eq!(result, 55.5);
     /// ```
-    pub fn unwrap_done(self) -> T {
+    pub fn unwrap_done(self) -> R {
         match self {
             State::Yield(_) => panic!("state is Done"),
             State::Done(out) => out,
