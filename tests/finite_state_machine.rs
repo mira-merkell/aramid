@@ -4,40 +4,50 @@
 
 mod fsm {
     pub struct RawData;
-    pub struct ProcData;
+    pub struct ProcData {
+        params: u8,
+    }
 
     fn recv() -> RawData {
         RawData {}
     }
 
-    fn process(_data: RawData) -> ProcData {
-        ProcData {}
+    fn process(
+        _data: RawData,
+        params: u8,
+    ) -> ProcData {
+        ProcData {
+            params,
+        }
     }
 
-    fn send(_data: ProcData) {}
+    fn send(data: ProcData) -> u8 {
+        data.params
+    }
 
     pub enum MachineState {
         INIT,
         Raw(RawData),
         Proc(ProcData),
-        DONE(()),
+        DONE(u8),
     }
     use MachineState::*;
 
-    impl MachineState {
-        pub fn transition(
-            self,
-            _control: &(),
-        ) -> Self {
-            match self {
-                INIT => Raw(recv()),
-                Raw(data) => Proc(process(data)),
-                Proc(data) => {
-                    send(data);
-                    DONE(())
-                }
-                DONE(()) => DONE(()),
-            }
+    impl Default for MachineState {
+        fn default() -> Self {
+            Self::INIT
+        }
+    }
+
+    pub fn transition(
+        state: MachineState,
+        control: &u8,
+    ) -> MachineState {
+        match state {
+            INIT => Raw(recv()),
+            Raw(data) => Proc(process(data, *control)),
+            Proc(data) => DONE(send(data)),
+            DONE(x) => DONE(x),
         }
     }
 }
@@ -50,36 +60,34 @@ use aramid::{
 };
 use fsm::MachineState;
 struct Processor {
-    control: (),
+    control: u8,
     state:   Option<MachineState>,
 }
 
 impl Processor {
-    fn new(_control: ()) -> Self {
+    fn new(control: u8) -> Self {
         Self {
-            control: _control,
-            state:   Some(MachineState::INIT),
+            control,
+            state: Some(Default::default()),
         }
     }
 }
 
 impl Fiber for Processor {
     type Return = ();
-    type Yield<'a> = &'a MachineState
+    type Yield<'a> = &'a mut u8
     where
         Self: 'a;
 
     fn run(&mut self) -> State<Self::Yield<'_>, Self::Return> {
-        let mut state = Some(MachineState::transition(
-            self.state.take().unwrap(),
-            &self.control,
-        ));
+        let mut state =
+            Some(fsm::transition(self.state.take().unwrap(), &self.control));
         mem::swap(&mut self.state, &mut state);
 
-        match &self.state {
+        match &mut self.state {
             Some(MachineState::INIT) => panic!("already processed"),
             Some(MachineState::DONE(_)) => State::Done(()),
-            Some(state) => State::Yield(state),
+            Some(_) => State::Yield(&mut self.control),
             None => panic!(),
         }
     }
