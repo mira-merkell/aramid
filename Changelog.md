@@ -2,8 +2,11 @@
 
 ## 0.3
 
+### 0.3.0 (23/07/2023)
+
 - API breaking changes:
-  - the whole API invalidated due to redefinition of `Fiber::run()`
+  - the whole API invalidated and rewritten due to redefinition of
+    `Fiber::run()`
 
 ## 0.2
 
