@@ -99,7 +99,7 @@ struct ConveyorBelt {
 }
 
 impl ConveyorBelt {
-    fn add_new(&mut self) {
+    fn _add_new(&mut self) {
         self.proc.push(Processor::new(self.control))
     }
 }

@@ -193,3 +193,53 @@ pub trait FiberIterator: Iterator + Sized {
 }
 
 impl<T> FiberIterator for T where T: Iterator + Sized {}
+
+
+
+// /// A fiber consisting of a closure and continuation.
+// ///
+// /// The structure is allocated on the heap.
+// pub struct HeapJob<T> {
+//     f: Option<Box<dyn FnOnce() -> State<HeapJob<T>>>>,
+// }
+
+// impl<T> HeapJob<T> {
+//     pub fn new<F>(f: F) -> Self
+//     where
+//         F: FnOnce() -> State<HeapJob<T>> + 'static,
+//     {
+//         Self {
+//             f: Some(Box::new(f))
+//         }
+//     }
+
+// }
+
+// impl<T> Fiber for HeapJob<T> {
+//     type Output = T;
+//     type Yield = ();
+
+//     fn run(&mut self) -> State<Self> {
+//         let f = mem::take(&mut self.f).unwrap();
+//         match f() {
+//             State::Output(res) => State::Output(res),
+//             State::Yield(f) => {
+//                 mem::replace(&mut self.f, f);
+//                 S
+//             }
+//         }
+
+//     }
+
+//     // fn get(&mut self) -> Option<Self::Yield> {
+//     //     None
+//     // }
+// }
+
+// /// Specify the closure's continuation.
+// pub fn continue_with<T, OP>(f: OP) -> State<HeapJob<T>>
+// where
+//     OP: FnOnce() -> State<HeapJob<T>> + 'static,
+// {
+//     State::Yield(HeapJob::new(f))
+// }

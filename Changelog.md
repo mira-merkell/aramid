@@ -3,7 +3,7 @@
 ## 0.3
 
 - API breaking changes:
-  - basically the whole API invalidated due to redefinition of `Fiber::run()`
+  - the whole API invalidated due to redefinition of `Fiber::run()`
 
 ## 0.2
 
