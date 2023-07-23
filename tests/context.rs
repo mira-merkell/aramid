@@ -3,9 +3,9 @@
 pub trait Fiber {
     type Yield;
 
-    fn run(
-        &mut self,
-        cx: &mut Context<'_, Self>,
+    fn run<'a>(
+        &'a mut self,
+        cx: &mut Context<'a, Self>,
     );
 }
 
@@ -50,7 +50,7 @@ pub struct Context<'a, F>
 where
     F: Fiber + ?Sized,
 {
-    stack: Vec<Box<dyn FnOnce(&mut Self) -> F::Yield + 'a>>,
+    stack: Vec<Box<dyn FnMut() -> F::Yield + 'a>>,
 }
 
 impl<'a, F> Context<'a, F>
@@ -83,14 +83,14 @@ where
         &mut self,
         f: BODY,
     ) where
-        BODY: FnOnce(&mut Self) -> F::Yield + 'a,
+        BODY: FnMut() -> F::Yield + 'a,
     {
         self.stack.insert(0, Box::new(f))
     }
 
     pub fn run(&mut self) -> State<F::Yield> {
-        if let Some(f) = self.stack.pop() {
-            State::Yield(f(self))
+        if let Some(mut f) = self.stack.pop() {
+            State::Yield(f())
         } else {
             State::Done
         }
@@ -102,17 +102,27 @@ mod tests {
 
     use super::*;
 
-    struct MockFiber {}
+    struct MockFiber {
+        share_it: u8,
+    }
 
     impl Fiber for MockFiber {
         type Yield = u8;
 
-        fn run(
-            &mut self,
-            cx: &mut Context<'_, Self>,
+        fn run<'a>(
+            &'a mut self,
+            cx: &mut Context<'a, Self>,
         ) {
-            cx.spawn(|_| {
+            cx.spawn(|| {
                 println!("Hello from fiber");
+                self.share_it += 1;
+                self.share_it
+            });
+            cx.spawn(|| {
+                println!("Hello from fiber");
+                // self.share_it += 1;
+
+                // self.share_it
                 0
             });
         }
@@ -120,7 +130,9 @@ mod tests {
 
     #[test]
     fn fiber_01() {
-        let mut fbr = MockFiber {};
+        let mut fbr = MockFiber {
+            share_it: 0
+        };
         let mut cx = Context::new();
         cx.wrap(&mut fbr);
         println!("{}", cx.stack.len());
