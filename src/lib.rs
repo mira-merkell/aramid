@@ -137,3 +137,96 @@ impl<Y, R> State<Y, R> {
         }
     }
 }
+
+pub struct HeapJob<'a, T> {
+    f: Box<dyn FnMut() -> State<HeapJob<'a, T>, T> + 'a>,
+}
+
+impl<'a, T> HeapJob<'a, T> {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnMut() -> State<Self, T> + 'a,
+    {
+        Self {
+            f: Box::new(f)
+        }
+    }
+}
+
+impl<'a, T> Fiber for HeapJob<'a, T> {
+    type Return = T;
+    type Yield<'any> = () where Self: 'any;
+
+    fn run(&mut self) -> State<Self::Yield<'_>, Self::Return> {
+        match (self.f)() {
+            State::Yield(yld) => {
+                self.f = yld.f;
+                State::Yield(())
+            }
+            State::Done(res) => State::Done(res),
+        }
+    }
+}
+
+pub fn continue_with<'a, F, T>(f: F) -> State<HeapJob<'a, T>, T>
+where
+    F: FnMut() -> State<HeapJob<'a, T>, T> + 'a,
+{
+    State::Yield(HeapJob::new(f))
+}
+
+#[cfg(test)]
+mod tests {
+    use State::Done;
+
+    use super::*;
+
+    #[test]
+    fn heapjob_01() {
+        let mut fbr = HeapJob::new(|| Done(55.5));
+        assert_eq!(fbr.run(), Done(55.5));
+    }
+
+    #[test]
+    fn heapjob_02() {
+        let mut fbr = HeapJob::new(|| {
+            let res = 55.5;
+            continue_with(move || Done(res))
+        });
+        assert_eq!(fbr.run(), State::Yield(()));
+        assert_eq!(fbr.run(), Done(55.5));
+    }
+
+    #[test]
+    fn heapjob_03() {
+        let mut fbr = HeapJob::new(|| {
+            let res = 11;
+            continue_with(move || {
+                let res = res * 5;
+                continue_with(move || Done(res))
+            })
+        });
+        assert_eq!(fbr.run(), State::Yield(()));
+        assert_eq!(fbr.run(), State::Yield(()));
+        assert_eq!(fbr.run(), Done(55));
+    }
+
+    #[test]
+    fn heapjob_04() {
+        let continuation = |res| {
+            continue_with(move || {
+                let res = res * 5;
+                continue_with(move || Done(res))
+            })
+        };
+
+        let mut fbr = HeapJob::new(move || {
+            let res = 11;
+            continuation(res)
+        });
+
+        assert_eq!(fbr.run(), State::Yield(()));
+        assert_eq!(fbr.run(), State::Yield(()));
+        assert_eq!(fbr.run(), Done(55));
+    }
+}
