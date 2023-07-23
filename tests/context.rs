@@ -1,43 +1,99 @@
+//! 🁖 🁖
+
 pub trait Fiber {
     type Yield;
-    type Return;
 
     fn run(
         &mut self,
-        cx: &mut Context<'_>,
+        cx: &mut Context<'_, Self>,
     );
 }
 
-pub struct Context<'a> {
-    stack: Vec<Box<dyn FnOnce() + 'a>>,
+#[derive(Debug, PartialEq)]
+pub enum State<Y> {
+    Yield(Y),
+    Done,
 }
 
-impl<'a> Context<'a> {
+// pub struct Scope<'scope, 'env: 'scope, F>
+// where
+//     F: Fiber + ?Sized,
+// {
+//     cx:    &'scope mut Context<'env, F>,
+//     scope: PhantomData<&'scope mut &'scope ()>,
+//     env:   PhantomData<&'env mut &'env ()>,
+// }
+
+// impl<'scope, 'env: 'scope, F> Scope<'scope, 'env, F>
+// where
+//     F: Fiber + ?Sized,
+// {
+//     pub fn new(cx: &'scope mut Context<'env, F>) -> Self {
+//         Self {
+//             cx,
+//             scope: PhantomData,
+//             env: PhantomData,
+//         }
+//     }
+
+//     pub fn spawn<BODY>(
+//         &mut self,
+//         f: BODY,
+//     ) where BODY: FnOnce() -> F::Yield + 'env,
+//     {
+//         println!("Hello from spawn");
+//         self.cx.stack.insert(0, Box::new(f))
+//     }
+// }
+
+pub struct Context<'a, F>
+where
+    F: Fiber + ?Sized,
+{
+    stack: Vec<Box<dyn FnOnce(&mut Self) -> F::Yield + 'a>>,
+}
+
+impl<'a, F> Context<'a, F>
+where
+    F: Fiber,
+{
     pub fn new() -> Self {
         Self {
             stack: Vec::new()
         }
     }
 
-    pub fn wrap<F: Fiber>(
+    pub fn wrap(
         &mut self,
-        f: &mut F,
+        f: &'a mut F,
     ) {
-        f.run(self)
+        f.run(self);
     }
 
-    pub fn spawn<F>(
+    // pub fn scope<OP>(
+    //     &mut self,
+    //     f: OP,
+    // ) where for<'scope> OP: FnOnce(&'scope mut Scope<'scope, 'a, F>),
+    // {
+    //     let mut scope = Scope::new(self);
+    //     f(&mut scope)
+    // }
+
+    pub fn spawn<BODY>(
         &mut self,
-        f: F,
+        f: BODY,
     ) where
-        F: FnOnce() + 'a,
+        BODY: FnOnce(&mut Self) -> F::Yield + 'a,
     {
         self.stack.insert(0, Box::new(f))
     }
 
-    pub fn run(&mut self) {
-        let f = self.stack.pop().unwrap();
-        f()
+    pub fn run(&mut self) -> State<F::Yield> {
+        if let Some(f) = self.stack.pop() {
+            State::Yield(f(self))
+        } else {
+            State::Done
+        }
     }
 }
 
@@ -49,26 +105,29 @@ mod tests {
     struct MockFiber {}
 
     impl Fiber for MockFiber {
-        type Return = ();
-        type Yield = ();
+        type Yield = u8;
 
         fn run(
             &mut self,
-            cx: &mut Context<'_>,
+            cx: &mut Context<'_, Self>,
         ) {
-            cx.spawn(|| println!("Hello from fiber 1"));
-            cx.spawn(|| println!("Hello from fiber 2"));
+            cx.spawn(|_| {
+                println!("Hello from fiber");
+                0
+            });
         }
     }
 
     #[test]
     fn fiber_01() {
-        let mut cx = Context::new();
         let mut fbr = MockFiber {};
-
+        let mut cx = Context::new();
         cx.wrap(&mut fbr);
+        println!("{}", cx.stack.len());
+
         println!("Run context");
-        cx.run();
-        cx.run();
+        assert_eq!(cx.run(), State::Yield(0));
+
+        assert_eq!(cx.run(), State::Done)
     }
 }
