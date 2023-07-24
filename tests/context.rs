@@ -1,145 +1,93 @@
-//! 🁖 🁖
+use std::{
+    sync::{
+        mpsc::{
+            sync_channel,
+            Receiver,
+            SyncSender,
+        },
+        Arc,
+        Mutex,
+        MutexGuard,
+    },
+    thread::{
+        self,
+        JoinHandle,
+    },
+};
 
-pub trait Fiber {
-    type Yield;
-
-    fn run<'a>(
-        &'a mut self,
-        cx: &mut Context<'a, Self>,
-    );
+struct MockFiber {
+    data: u8,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum State<Y> {
-    Yield(Y),
-    Done,
-}
-
-// pub struct Scope<'scope, 'env: 'scope, F>
-// where
-//     F: Fiber + ?Sized,
-// {
-//     cx:    &'scope mut Context<'env, F>,
-//     scope: PhantomData<&'scope mut &'scope ()>,
-//     env:   PhantomData<&'env mut &'env ()>,
-// }
-
-// impl<'scope, 'env: 'scope, F> Scope<'scope, 'env, F>
-// where
-//     F: Fiber + ?Sized,
-// {
-//     pub fn new(cx: &'scope mut Context<'env, F>) -> Self {
-//         Self {
-//             cx,
-//             scope: PhantomData,
-//             env: PhantomData,
-//         }
-//     }
-
-//     pub fn spawn<BODY>(
-//         &mut self,
-//         f: BODY,
-//     ) where BODY: FnOnce() -> F::Yield + 'env,
-//     {
-//         println!("Hello from spawn");
-//         self.cx.stack.insert(0, Box::new(f))
-//     }
-// }
-
-pub struct Context<'a, F>
-where
-    F: Fiber + ?Sized,
-{
-    stack: Vec<Box<dyn FnMut() -> F::Yield + 'a>>,
-}
-
-impl<'a, F> Context<'a, F>
-where
-    F: Fiber,
-{
-    pub fn new() -> Self {
-        Self {
-            stack: Vec::new()
-        }
-    }
-
-    pub fn wrap(
+impl MockFiber {
+    fn run(
         &mut self,
-        f: &'a mut F,
+        cx: &mut Context,
+    ) -> u8 {
+        for i in 0..3 {
+            println!("Hello from dual space");
+            cx.r#yield(i);
+        }
+        self.data
+    }
+}
+
+struct Context {
+    tx: SyncSender<u8>,
+    rx: Receiver<()>,
+}
+
+impl Context {
+    fn r#yield(
+        &mut self,
+        val: u8,
     ) {
-        f.run(self);
-    }
-
-    // pub fn scope<OP>(
-    //     &mut self,
-    //     f: OP,
-    // ) where for<'scope> OP: FnOnce(&'scope mut Scope<'scope, 'a, F>),
-    // {
-    //     let mut scope = Scope::new(self);
-    //     f(&mut scope)
-    // }
-
-    pub fn spawn<BODY>(
-        &mut self,
-        f: BODY,
-    ) where
-        BODY: FnMut() -> F::Yield + 'a,
-    {
-        self.stack.insert(0, Box::new(f))
-    }
-
-    pub fn run(&mut self) -> State<F::Yield> {
-        if let Some(mut f) = self.stack.pop() {
-            State::Yield(f())
-        } else {
-            State::Done
-        }
+        self.tx.send(val).unwrap();
+        let _ = self.rx.recv().unwrap();
     }
 }
 
-#[cfg(test)]
-mod tests {
+struct Executor {
+    handle: JoinHandle<u8>,
+    tx:     SyncSender<()>,
+    rx:     Receiver<u8>,
+}
 
-    use super::*;
-
-    struct MockFiber {
-        share_it: u8,
-    }
-
-    impl Fiber for MockFiber {
-        type Yield = u8;
-
-        fn run<'a>(
-            &'a mut self,
-            cx: &mut Context<'a, Self>,
-        ) {
-            cx.spawn(|| {
-                println!("Hello from fiber");
-                self.share_it += 1;
-                self.share_it
-            });
-            cx.spawn(|| {
-                println!("Hello from fiber");
-                // self.share_it += 1;
-
-                // self.share_it
-                0
-            });
+impl Executor {
+    fn wrap(mut fbr: MockFiber) -> Self {
+        let (tx_yld, rx_yld) = sync_channel(1);
+        let (tx_ctl, rx_ctl) = sync_channel(1);
+        let mut cx = Context {
+            tx: tx_yld,
+            rx: rx_ctl,
+        };
+        let handle = thread::spawn(move || {
+            let _ = cx.rx.recv().unwrap();
+            fbr.run(&mut cx)
+        });
+        Self {
+            handle,
+            tx: tx_ctl,
+            rx: rx_yld,
         }
     }
 
-    #[test]
-    fn fiber_01() {
-        let mut fbr = MockFiber {
-            share_it: 0
-        };
-        let mut cx = Context::new();
-        cx.wrap(&mut fbr);
-        println!("{}", cx.stack.len());
-
-        println!("Run context");
-        assert_eq!(cx.run(), State::Yield(0));
-
-        assert_eq!(cx.run(), State::Done)
+    fn run(&mut self) -> u8 {
+        self.tx.send(()).unwrap();
+        self.rx.recv().unwrap()
     }
+}
+
+#[test]
+fn mockup_fiber_01() {
+    let fbr = MockFiber {
+        data: 10
+    };
+    let mut exec = Executor::wrap(fbr);
+
+    println!("Hello from primary space");
+    assert_eq!(exec.run(), 0);
+    println!("Hello from primary space");
+    assert_eq!(exec.run(), 1);
+    assert_eq!(exec.run(), 2);
 }
