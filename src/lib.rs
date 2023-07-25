@@ -2,9 +2,9 @@
 //!
 //! Lightweight coroutines for cooperative multitasking.
 
-/// Coroutine.
-pub trait Coro<T, R = ()> {
-    fn coro<F>(
+/// Cofunction.
+pub trait CoFn<T, R = ()>: CoFnMut<T, R> {
+    fn call<F>(
         &self,
         f: F,
     ) -> R
@@ -12,15 +12,33 @@ pub trait Coro<T, R = ()> {
         for<'a> F: FnOnce(&'a T) -> R;
 }
 
+/// Cofunction.
+pub trait CoFnMut<T, R = ()>: CoFnOnce<T, R> {
+    fn call_mut<F>(
+        &mut self,
+        f: F,
+    ) -> R
+    where
+        for<'a> F: FnOnce(&'a mut T) -> R;
+}
+
+/// Cofunction.
+pub trait CoFnOnce<T, R = ()> {
+    fn call_once<F>(
+        self,
+        f: F,
+    ) -> R
+    where
+        F: FnOnce(T) -> R;
+}
+
 /// Fiber.
-pub trait Fiber {
-    type Yield;
-    type Return;
-    type Coroutine<'a>: Coro<Self::Yield>
+pub trait Fiber<T, R = ()> {
+    type Coro<'a>: CoFn<T, R>
     where
         Self: 'a;
 
-    fn next(&mut self) -> State<Self::Coroutine<'_>, Self::Return>;
+    fn next(&mut self) -> Option<Self::Coro<'_>>;
 }
 
 /// Fiber state.
