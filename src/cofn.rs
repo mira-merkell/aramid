@@ -17,7 +17,7 @@ pub trait CoFnMut<T, R = ()> {
         f: F,
     ) -> R
     where
-        for<'a> F: FnOnce(&'a mut T) -> R;
+        F: FnOnce(&mut T) -> R;
 }
 
 /// Cofunction that takes an immutable receiver.
@@ -27,7 +27,7 @@ pub trait CoFn<T, R = ()> {
         f: F,
     ) -> R
     where
-        for<'a> F: FnOnce(&'a T) -> R;
+        F: FnOnce(&T) -> R;
 }
 
 mod impls {
@@ -45,7 +45,7 @@ mod impls {
             f: F,
         ) -> R
         where
-            for<'a> F: FnOnce(&'a T) -> R,
+            F: FnOnce(&T) -> R,
         {
             (**self).call(f)
         }
@@ -60,7 +60,7 @@ mod impls {
             f: F,
         ) -> R
         where
-            for<'a> F: FnOnce(&'a T) -> R,
+            F: FnOnce(&T) -> R,
         {
             (**self).call(f)
         }
@@ -75,7 +75,7 @@ mod impls {
             f: F,
         ) -> R
         where
-            for<'a> F: FnOnce(&'a mut T) -> R,
+            F: FnOnce(&mut T) -> R,
         {
             (**self).call_mut(f)
         }
@@ -140,7 +140,7 @@ impl<T, R> CoFnMut<T, R> for Eval<T> {
         f: F,
     ) -> R
     where
-        for<'a> F: FnOnce(&'a mut T) -> R,
+        F: FnOnce(&mut T) -> R,
     {
         f(&mut self.0)
     }
@@ -152,7 +152,7 @@ impl<T, R> CoFn<T, R> for Eval<T> {
         f: F,
     ) -> R
     where
-        for<'a> F: FnOnce(&'a T) -> R,
+        F: FnOnce(&T) -> R,
     {
         f(&self.0)
     }

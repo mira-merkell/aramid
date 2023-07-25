@@ -26,7 +26,6 @@ impl<I: Iterator> Fiber<I::Item> for IntoFiber<I> {
     }
 }
 
-
 pub trait FiberIterator: Iterator + Sized {
     fn into_fiber(self) -> IntoFiber<Self> {
         IntoFiber::new(self)
