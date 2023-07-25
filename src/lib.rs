@@ -14,7 +14,7 @@ pub use cofn::{
 mod iter;
 pub use iter::{
     FiberIterator,
-    IterFbr,
+    IntoFiber,
 };
 
 mod state;
