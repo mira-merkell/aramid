@@ -2,12 +2,19 @@
 //!
 //! Lightweight coroutines for cooperative multitasking.
 
+// ⚰️⚰️⚰️
 mod cofn;
 pub use cofn::{
     CoFn,
     CoFnMut,
     CoFnOnce,
     Eval,
+};
+
+mod iter;
+pub use iter::{
+    FiberIterator,
+    IterFbr,
 };
 
 mod state;

@@ -1,24 +1,4 @@
-//! Various cofuntions and coroutines
-
-/// Cofunction that takes an immutable receiver.
-pub trait CoFn<T, R = ()>: CoFnMut<T, R> {
-    fn call<F>(
-        &self,
-        f: F,
-    ) -> R
-    where
-        for<'a> F: FnOnce(&'a T) -> R;
-}
-
-/// Cofunction that takes a mutable receiver.
-pub trait CoFnMut<T, R = ()>: CoFnOnce<T, R> {
-    fn call_mut<F>(
-        &mut self,
-        f: F,
-    ) -> R
-    where
-        for<'a> F: FnOnce(&'a mut T) -> R;
-}
+//! Various cofunctions and coroutines
 
 /// Cofunction that takes a by-value receiver.
 pub trait CoFnOnce<T, R = ()> {
@@ -30,6 +10,91 @@ pub trait CoFnOnce<T, R = ()> {
         F: FnOnce(T) -> R;
 }
 
+/// Cofunction that takes a mutable receiver.
+pub trait CoFnMut<T, R = ()> {
+    fn call_mut<F>(
+        &mut self,
+        f: F,
+    ) -> R
+    where
+        for<'a> F: FnOnce(&'a mut T) -> R;
+}
+
+/// Cofunction that takes an immutable receiver.
+pub trait CoFn<T, R = ()> {
+    fn call<F>(
+        &self,
+        f: F,
+    ) -> R
+    where
+        for<'a> F: FnOnce(&'a T) -> R;
+}
+
+mod impls {
+    use super::{
+        CoFn,
+        CoFnMut,
+    };
+
+    impl<T, R, Co> CoFn<T, R> for &Co
+    where
+        Co: CoFn<T, R>,
+    {
+        fn call<F>(
+            &self,
+            f: F,
+        ) -> R
+        where
+            for<'a> F: FnOnce(&'a T) -> R,
+        {
+            (**self).call(f)
+        }
+    }
+
+    impl<T, R, Co> CoFn<T, R> for &mut Co
+    where
+        Co: CoFn<T, R>,
+    {
+        fn call<F>(
+            &self,
+            f: F,
+        ) -> R
+        where
+            for<'a> F: FnOnce(&'a T) -> R,
+        {
+            (**self).call(f)
+        }
+    }
+
+    impl<T, R, Co> CoFnMut<T, R> for &mut Co
+    where
+        Co: CoFnMut<T, R>,
+    {
+        fn call_mut<F>(
+            &mut self,
+            f: F,
+        ) -> R
+        where
+            for<'a> F: FnOnce(&'a mut T) -> R,
+        {
+            (**self).call_mut(f)
+        }
+    }
+}
+
+/// Evaluate functions at an argument.
+///
+/// # Examples
+///
+/// ```rust
+/// # use aramid::{Eval, CoFn};
+/// let coro = Eval::from(2);
+/// let f = |x: &_| x * 2;
+/// let g = |x: &_| x * 3;
+///
+/// assert_eq!(coro.call(f), 4);
+/// assert_eq!(coro.call(g), 6);
+/// ```
 #[derive(Debug, PartialEq, Default)]
 pub struct Eval<T>(T);
 
