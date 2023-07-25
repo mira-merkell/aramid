@@ -1,11 +1,11 @@
 use aramid::{
     CoFn,
-    Eval,
+    Yield,
 };
 
 #[test]
 fn pass_closure() {
-    let cof = Eval::from(1);
+    let cof = Yield::from(1);
     let f = |x: &i32| x * 2;
 
     assert_eq!(cof.call(f), 2);
@@ -14,7 +14,7 @@ fn pass_closure() {
 
 #[test]
 fn pass_closure_mut_self() {
-    let mut cof = Eval::from(1);
+    let mut cof = Yield::from(1);
     let f = |x: &i32| x * 2;
 
     assert_eq!(cof.call(f), 2);
@@ -24,7 +24,7 @@ fn pass_closure_mut_self() {
 
 #[test]
 fn borrow_closure() {
-    let cof = Eval::from(1);
+    let cof = Yield::from(1);
     let f = |x: &i32| x * 2;
 
     assert_eq!(cof.call(&f), 2);
@@ -40,7 +40,7 @@ fn mut_closure() {
         x * fac
     };
 
-    let cof = Eval::from(1);
+    let cof = Yield::from(1);
 
     assert_eq!(cof.call(&mut f), 2);
     assert_eq!(cof.call(&mut f), 4);
@@ -56,7 +56,7 @@ fn mut_closure_mut_self() {
         x * fac
     };
 
-    let mut cof = Eval::from(1);
+    let mut cof = Yield::from(1);
 
     assert_eq!(cof.call(&mut f), 2);
     assert_eq!(cof.call(&mut f), 4);

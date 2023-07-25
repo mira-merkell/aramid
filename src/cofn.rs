@@ -82,13 +82,13 @@ mod impls {
     }
 }
 
-/// Evaluate functions at an argument.
+/// Evaluate a continuation.
 ///
 /// # Examples
 ///
 /// ```rust
-/// # use aramid::{Eval, CoFn};
-/// let coro = Eval::from(2);
+/// # use aramid::{Yield, CoFn};
+/// let coro = Yield::from(2);
 /// let f = |x: &_| x * 2;
 /// let g = |x: &_| x * 3;
 ///
@@ -96,33 +96,33 @@ mod impls {
 /// assert_eq!(coro.call(g), 6);
 /// ```
 #[derive(Debug, PartialEq, Default)]
-pub struct Eval<T>(T);
+pub struct Yield<T>(T);
 
-impl<T> Eval<T> {
+impl<T> Yield<T> {
     pub fn take(self) -> T {
         self.0
     }
 }
 
-impl<T> From<T> for Eval<T> {
+impl<T> From<T> for Yield<T> {
     fn from(value: T) -> Self {
         Self(value)
     }
 }
 
-impl<T> AsRef<T> for Eval<T> {
+impl<T> AsRef<T> for Yield<T> {
     fn as_ref(&self) -> &T {
         &self.0
     }
 }
 
-impl<T> AsMut<T> for Eval<T> {
+impl<T> AsMut<T> for Yield<T> {
     fn as_mut(&mut self) -> &mut T {
         &mut self.0
     }
 }
 
-impl<T, R> CoFnOnce<T, R> for Eval<T> {
+impl<T, R> CoFnOnce<T, R> for Yield<T> {
     fn call_once<F>(
         self,
         f: F,
@@ -134,7 +134,7 @@ impl<T, R> CoFnOnce<T, R> for Eval<T> {
     }
 }
 
-impl<T, R> CoFnMut<T, R> for Eval<T> {
+impl<T, R> CoFnMut<T, R> for Yield<T> {
     fn call_mut<F>(
         &mut self,
         f: F,
@@ -146,7 +146,7 @@ impl<T, R> CoFnMut<T, R> for Eval<T> {
     }
 }
 
-impl<T, R> CoFn<T, R> for Eval<T> {
+impl<T, R> CoFn<T, R> for Yield<T> {
     fn call<F>(
         &self,
         f: F,

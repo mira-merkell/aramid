@@ -1,5 +1,5 @@
 use super::{
-    cofn::Eval,
+    cofn::Yield,
     Fiber,
 };
 
@@ -17,12 +17,12 @@ impl<I: Iterator> IntoFiber<I> {
 }
 
 impl<I: Iterator> Fiber<I::Item> for IntoFiber<I> {
-    type Coro<'a> =  Eval<I::Item>
+    type Coro<'a> =  Yield<I::Item>
     where
         Self: 'a;
 
     fn next(&mut self) -> Option<Self::Coro<'_>> {
-        self.iter.next().map(Eval::from)
+        self.iter.next().map(Yield::from)
     }
 }
 

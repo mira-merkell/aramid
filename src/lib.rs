@@ -8,7 +8,7 @@ pub use cofn::{
     CoFn,
     CoFnMut,
     CoFnOnce,
-    Eval,
+    Yield,
 };
 
 mod iter;
