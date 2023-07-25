@@ -1,10 +1,11 @@
-use aramid::CoFnMut;
-
-use super::EvaluateAt;
+use aramid::{
+    CoFnMut,
+    Eval,
+};
 
 #[test]
 fn pass_closure() {
-    let mut cof = EvaluateAt(1);
+    let mut cof = Eval::from(1);
     let f = |x: &mut i32| *x * 2;
 
     assert_eq!(cof.call_mut(f), 2);
@@ -13,17 +14,17 @@ fn pass_closure() {
 
 #[test]
 fn pass_closure_mut_self() {
-    let mut cof = EvaluateAt(1);
+    let mut cof = Eval::from(1);
     let f = |x: &mut i32| *x * 2;
 
     assert_eq!(cof.call_mut(f), 2);
-    cof.0 = 2;
+    *cof.as_mut() = 2;
     assert_eq!(cof.call_mut(f), 4);
 }
 
 #[test]
 fn borrow_closure() {
-    let mut cof = EvaluateAt(1);
+    let mut cof = Eval::from(1);
     let f = |x: &mut i32| *x * 2;
 
     assert_eq!(cof.call_mut(&f), 2);
@@ -39,7 +40,7 @@ fn mut_closure() {
         *x * fac
     };
 
-    let mut cof = EvaluateAt(1);
+    let mut cof = Eval::from(1);
 
     assert_eq!(cof.call_mut(&mut f), 2);
     assert_eq!(cof.call_mut(&mut f), 4);
@@ -55,18 +56,18 @@ fn mut_closure_mut_self() {
         *x * fac
     };
 
-    let mut cof = EvaluateAt(1);
+    let mut cof = Eval::from(1);
 
     assert_eq!(cof.call_mut(&mut f), 2);
     assert_eq!(cof.call_mut(&mut f), 4);
-    cof.0 = 0;
+    *cof.as_mut() = 0;
     assert_eq!(cof.call_mut(f), 0);
 }
 
 #[test]
 fn modify_self_via_closure() {
     let f = |x: &mut i32| *x = 0;
-    let mut cof = EvaluateAt(1);
+    let mut cof = Eval::from(1);
     cof.call_mut(f);
-    assert_eq!(cof.0, 0);
+    assert_eq!(cof.as_ref(), &0);
 }

@@ -1,10 +1,11 @@
-use aramid::CoFnOnce;
-
-use super::EvaluateAt;
+use aramid::{
+    CoFnOnce,
+    Eval,
+};
 
 #[test]
 fn move_closure() {
-    let cof = EvaluateAt(1);
+    let cof = Eval::from(1);
     let f = |x| x * 2;
 
     assert_eq!(cof.call_once(f), 2);
@@ -15,12 +16,12 @@ fn move_closure() {
 
 #[test]
 fn borrow_closure() {
-    let cof = EvaluateAt(1);
+    let cof = Eval::from(1);
     let f = |x| x * 2;
 
     assert_eq!(cof.call_once(&f), 2);
 
-    let cof = EvaluateAt(1);
+    let cof = Eval::from(1);
     assert_eq!(cof.call_once(f), 2);
 }
 
@@ -33,12 +34,12 @@ fn mut_closure() {
         x * fac
     };
 
-    let cof = EvaluateAt(1);
+    let cof = Eval::from(1);
     assert_eq!(cof.call_once(&mut f), 2);
 
-    let cof = EvaluateAt(1);
+    let cof = Eval::from(1);
     assert_eq!(cof.call_once(&mut f), 4);
 
-    let cof = EvaluateAt(2);
+    let cof = Eval::from(2);
     assert_eq!(cof.call_once(f), 16);
 }
