@@ -2,6 +2,11 @@
 
 ## 0.3
 
+### 0.3.1 (25/07/2023)
+
+- API breaking changes:
+  - the whole API invalidated and rewritten again. 🤷🙃
+
 ### 0.3.0 (23/07/2023)
 
 - API breaking changes:

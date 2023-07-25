@@ -24,7 +24,7 @@ Synthetic fibers and Rust.
   Or add the following line to your Cargo.toml:
 
   ```toml
-  aramid = "0.3.0"
+  aramid = "0.3.1"
   ```
 
 - The documentation is available online at
