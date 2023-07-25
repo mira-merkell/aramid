@@ -2,7 +2,6 @@
 //!
 //! Lightweight coroutines for cooperative multitasking.
 
-// ⚰️⚰️⚰️
 mod cofn;
 pub use cofn::{
     CoFn,

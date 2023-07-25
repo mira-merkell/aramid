@@ -26,10 +26,10 @@ impl<I: Iterator> Fiber<I::Item> for IntoFiber<I> {
     }
 }
 
-pub trait FiberIterator: Iterator + Sized {
-    fn into_fiber(self) -> IntoFiber<Self> {
-        IntoFiber::new(self)
+pub trait FiberIterator: IntoIterator + Sized {
+    fn into_fiber(self) -> IntoFiber<Self::IntoIter> {
+        IntoFiber::new(self.into_iter())
     }
 }
 
-impl<I> FiberIterator for I where I: Iterator + Sized {}
+impl<I> FiberIterator for I where I: IntoIterator + Sized {}
